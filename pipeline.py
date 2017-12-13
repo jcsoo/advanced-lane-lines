@@ -262,10 +262,13 @@ class Pipeline:
         # Assume you now have a new warped binary image 
         # from the next frame of video (also called "binary_warped")
         # It's now much easier to find line pixels!
+
+        margin = 50
+
+
         nonzero = binary_warped.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
-        margin = 100
         left_lane_inds = ((nonzerox > (left_fit[0]*(nonzeroy**2) + left_fit[1]*nonzeroy + 
         left_fit[2] - margin)) & (nonzerox < (left_fit[0]*(nonzeroy**2) + 
         left_fit[1]*nonzeroy + left_fit[2] + margin))) 
@@ -341,7 +344,7 @@ class Pipeline:
         img = self.combined(img)
         # img = self.sobel(img)
         # img = self.color_threshold(img)
-        # img = self.mask_image_binary(img, self.cfg.get('mask', None))
+        img = self.mask_image_binary(img, self.cfg.get('mask', None))
         img_masked = img.copy()
 
 
@@ -350,7 +353,7 @@ class Pipeline:
         # src = np.array([(575, 450), (705, 450), (100, 680), (1180, 680)], np.float32)
 
         vp = (640, 420)
-        tl = (540, 450)
+        tl = (520, 450)
         bl = (30, 615)
 
         src = np.array([
