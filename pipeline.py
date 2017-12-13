@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys, os, pickle
+from moviepy.editor import VideoFileClip
 
 from calibrate import ImageLoader
 
@@ -442,7 +443,7 @@ class Pipeline:
         warp_zero = np.zeros_like(warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
 
-        print(left_fitx.shape, ploty.shape)
+        # print(left_fitx.shape, ploty.shape)
 
         # Recast the x and y points into usable format for cv2.fillPoly()
         pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
@@ -473,8 +474,7 @@ class Pipeline:
     def draw_poly(self, img, points, closed, color, thickness=1):
         cv2.polylines(img, [np.array(points, np.int32)], closed, color, thickness)
 
-    def run(self, path):
-        img = self.load_image(path)
+    def process(self, img):
         img_orig = img.copy()
 
         img = self.combined(img)
@@ -511,7 +511,7 @@ class Pipeline:
         (fitx, fity, left_fitx, right_fitx, ploty, out_img) = self.find_lines_with_priors(img, fitx, fity)
 
         (left_curve, right_curve) = self.curve_radius_px(fitx, fity, 720)
-        print(left_curve, right_curve)
+        # print(left_curve, right_curve)
 
         out_img = self.draw_unwarped(img_orig, img, left_fitx, right_fitx, ploty, Minv)
 
@@ -525,17 +525,29 @@ class Pipeline:
         #self.draw_poly(img, [(0,0), (0, 100), (100, 100), (100, 0)], False, WHITE)
         return out_img
 
+    def run(self, path):
+        return self.process(self.load_image(path))
+
     def view(self, img):
         cv2.imshow('img', img)
         cv2.waitKey()   
 
+    def process_movie(self, path):
+        out_path = os.path.join('out_videos', path);
+        print(out_path)
+        # clip = VideoFileClip(path).subclip(0,5)
+        clip = VideoFileClip(path)
+        out_clip = clip.fl_image(self.process)
+        out_clip.write_videofile(out_path, audio=False)
 
 def main(args):
     pipeline = Pipeline(PIPELINE_CFG)
 
     for arg in args:
-        pipeline.view(pipeline.run(arg))
-
+        if os.path.splitext(arg)[1] == '.jpg':
+            pipeline.view(pipeline.run(arg))
+        elif os.path.splitext(arg)[1] == '.mp4':
+            pipeline.process_movie(arg)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
