@@ -318,7 +318,7 @@ class Pipeline:
         plt.xlim(0, 1280)
         plt.ylim(720, 0) 
         plt.show()
-        return (left_fit, right_fit, out_img)    
+        return (left_fit, right_fit, left_fitx, right_fitx, ploty, out_img)    
                
 
 
@@ -432,6 +432,30 @@ class Pipeline:
     def warp(self, img, M, img_size):
         return cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
 
+    def draw_unwarped(self, undist, warped, left_fitx, right_fitx, ploty, Minv):
+        image = undist
+        # Create an image to draw the lines on
+        warp_zero = np.zeros_like(warped).astype(np.uint8)
+        color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
+
+        print(left_fitx.shape, ploty.shape)
+
+        # Recast the x and y points into usable format for cv2.fillPoly()
+        pts_left = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
+        pts_right = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
+        pts = np.hstack((pts_left, pts_right))
+
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
+
+        # Warp the blank back to original image space using inverse perspective matrix (Minv)
+        newwarp = cv2.warpPerspective(color_warp, Minv, (image.shape[1], image.shape[0])) 
+        # Combine the result with the original image
+        result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
+        #plt.imshow(result)
+        #plt.show()
+        return result
+
     def draw_text(self, img, text, org, scale, color):      
         org = [org[0], org[1]]
         shape = img.shape
@@ -473,16 +497,20 @@ class Pipeline:
         dst = np.array([(0, 0), (1280, 0), (0, 720), (1280, 720)], np.float32)
 
         M = cv2.getPerspectiveTransform(src, dst)
+        Minv = cv2.getPerspectiveTransform(dst, src)
 
         img = self.warp(img, M, (1280, 720))
 
         # (fitx, fity, out_img) = self.window_conv(img)
 
         (fitx, fity, out_img) = self.find_lines(img)
-        (fitx, fity, out_img) = self.find_lines_with_priors(img, fitx, fity)
+        (fitx, fity, left_fitx, right_fitx, ploty, out_img) = self.find_lines_with_priors(img, fitx, fity)
 
         (left_curve, right_curve) = self.curve_radius_px(fitx, fity, 720)
         print(left_curve, right_curve)
+
+        out_img = self.draw_unwarped(img_orig, img, left_fitx, right_fitx, ploty, Minv)
+
         # pipeline.view(out_img)
         # self.display_lanes(img, fit)
 
