@@ -347,7 +347,18 @@ class Pipeline:
 
         # Center = 640, 420
         # [600, 450]
-        src = np.array([(575, 450), (705, 450), (100, 680), (1180, 680)], np.float32)
+        # src = np.array([(575, 450), (705, 450), (100, 680), (1180, 680)], np.float32)
+
+        vp = (640, 420)
+        tl = (540, 450)
+        bl = (30, 615)
+
+        src = np.array([
+            (tl[0], tl[1]), 
+            (vp[0] + (vp[0] - tl[0]), tl[1]), 
+            (bl[0], bl[1]), 
+            (vp[0] + (vp[0] - bl[0]), bl[1])],
+        np.float32)
         dst = np.array([(0, 0), (1280, 0), (0, 720), (1280, 720)], np.float32)
 
         M = cv2.getPerspectiveTransform(src, dst)
