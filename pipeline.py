@@ -163,7 +163,7 @@ class Pipeline:
         combined_binary[(s_binary == 1) | (sobel == 1)] = 1        
         return combined_binary
 
-    def find_lines(self, img):
+    def find_lines(self, img, plot=False):
         ### From Class Notes
 
         # Choose the number of sliding windows
@@ -242,22 +242,24 @@ class Pipeline:
         left_fit = np.polyfit(lefty, leftx, 2)
         right_fit = np.polyfit(righty, rightx, 2)
 
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
-        left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-        right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+        if plot:
+            # Generate x and y values for plotting
+            ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
+            left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
+            right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
-        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-        plt.imshow(out_img)
-        plt.plot(left_fitx, ploty, color='yellow')
-        plt.plot(right_fitx, ploty, color='yellow')
-        plt.xlim(0, 1280)
-        plt.ylim(720, 0)    
-        plt.show()
+            out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+            out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+
+            plt.imshow(out_img)
+            plt.plot(left_fitx, ploty, color='yellow')
+            plt.plot(right_fitx, ploty, color='yellow')
+            plt.xlim(0, 1280)
+            plt.ylim(720, 0)    
+            plt.show()
         return (left_fit, right_fit, out_img)    
 
-    def find_lines_with_priors(self, img, left_fit, right_fit):        
+    def find_lines_with_priors(self, img, left_fit, right_fit, plot=False):        
         binary_warped = img
         # Assume you now have a new warped binary image 
         # from the next frame of video (also called "binary_warped")
@@ -312,12 +314,14 @@ class Pipeline:
         cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
         cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
         result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
-        plt.imshow(result)
-        plt.plot(left_fitx, ploty, color='yellow')
-        plt.plot(right_fitx, ploty, color='yellow')
-        plt.xlim(0, 1280)
-        plt.ylim(720, 0) 
-        plt.show()
+
+        if plot:
+            plt.imshow(result)
+            plt.plot(left_fitx, ploty, color='yellow')
+            plt.plot(right_fitx, ploty, color='yellow')
+            plt.xlim(0, 1280)
+            plt.ylim(720, 0) 
+            plt.show()
         return (left_fit, right_fit, left_fitx, right_fitx, ploty, out_img)    
                
 
