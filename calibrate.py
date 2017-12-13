@@ -7,7 +7,25 @@ import sys, os, pickle
 NX = 9
 NY = 6
 
+class ImageLoader:
+    def __init__(self, calibration_path):
+        self.path = calibration_path
+        self.mat, self.dist = load_calibration(calibration_path)
 
+    def load_bgr(self, path):
+        return undistort(cv2.imread(path), self.mat, self.dist)
+
+    def load_rgb(self, path):
+        return cv2.cvtColor(self.load_bgr(path), cv2.COLOR_BGR2RGB)
+
+    def load_hsv(self, path):
+        return cv2.cvtColor(self.load_bgr(path), cv2.COLOR_BGR2HSV)
+
+    def load_hsl(self, path):
+        return cv2.cvtColor(self.load_bgr(path), cv2.COLOR_BGR2HSL)
+
+    def load_gray(self, path):
+        return cv2.cvtColor(self.load_bgr(path), cv2.COLOR_BGR2GRAY)
 
 def calibration_images():
     base = './camera_cal'
