@@ -23,6 +23,8 @@ class Pipeline:
         self.Minv = None
         self.fit_left = None
         self.fit_right = None
+        self.num_left = 0
+        self.num_right = 0
 
     def load_image(self, path):
         return self.loader.load_bgr(path)
@@ -311,7 +313,7 @@ class Pipeline:
             plt.show()
         return (left_fit, right_fit, out_img)    
 
-    def find_lines_with_priors(self, img, left_fit, right_fit, plot=False):        
+    def find_lines_with_priors(self, img, left_fit, right_fit, min_points=500, plot=False):
         binary_warped = img
         # Assume you now have a new warped binary image 
         # from the next frame of video (also called "binary_warped")
@@ -343,23 +345,27 @@ class Pipeline:
         righty = nonzeroy[right_lane_inds]
 
 
+
+        print(np.count_nonzero(leftx), np.count_nonzero(lefty), np.count_nonzero(rightx), np.count_nonzero(righty))
+
+        # print(leftx.count_non_zero(), lefty.count_non_zero(), rightx.count_non_zero(), righty.count_non_zero())
+
+
         # Fit a second order polynomial to each
 
-        if leftx.any() & lefty.any():
+        if np.count_nonzero(leftx) > 0:
             left_fit = np.polyfit(lefty, leftx, 2)
-        else:
-            left_fit = self.fit_left
+        
+            
 
-        if rightx.any() & righty.any():
+        if np.count_nonzero(rightx) > 0:
             right_fit = np.polyfit(righty, rightx, 2)
-        else:
-            right_fit = self.fit_right        
-
-        ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0] )
-        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
         if plot:
+            ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0] )
+            left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+            right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
             # Generate x and y values for plotting
             # Create an image to draw on and an image to show the selection window
 
@@ -394,7 +400,7 @@ class Pipeline:
             plt.ylim(720, 0) 
             plt.show()
 
-        return (left_fit, right_fit, left_fitx, right_fitx, ploty)
+        return (left_fit, right_fit, np.count_nonzero(leftx), np.count_nonzero(rightx))
                
 
 
@@ -628,8 +634,9 @@ class Pipeline:
         # self.view(img_warped)
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
+        # if self.num_left < 500 or self.num_right < 500:
         self.fit_left, self.fit_right, out_img = self.find_lines(img_warped)
-        self.fit_left, self.fit_right, left_fitx, right_fitx, ploty = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right)
+        self.fit_left, self.fit_right, self.num_left, self.num_right = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right)
 
         # (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
