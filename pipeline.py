@@ -102,23 +102,26 @@ class Pipeline:
         return masked_image            
 
     def sobel(self, img):
-        k_size = 5
+        k_size = 3
         sx_thresh = None #(20, 100), 
         sy_thresh = None #(0, 10), 
-        mag_thresh = (50, 100)
-        dir_thresh = (0.7, 1.3)
+        mag_thresh = (75, 100)
+        dir_thresh = (0.7, 1.3)    
 
         img = np.copy(img)
         # Convert to HLS color space and separate the L channel
         hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
         l_channel = hls[:,:,1]
         
+        # l_channel = l_channel / l_channel.mean()
+
         # Sobel x
         sobelx = cv2.Sobel(l_channel, cv2.CV_64F, 1, 0, ksize=k_size) # Take the derivative in x
         sobely = cv2.Sobel(l_channel, cv2.CV_64F, 0, 1, ksize=k_size) # Take the derivative in 1
 
         abs_sobelx = np.absolute(sobelx) # Absolute x derivative to accentuate lines away from horizontal
         abs_sobely = np.absolute(sobely) # Absolute x derivative to accentuate lines away from horizontal
+
         mag_sobel = np.sqrt(sobelx**2 + sobely**2) # Magnitude of gradient
         dir_sobel = np.arctan2(abs_sobely, abs_sobelx) # Direction of gradient
         
@@ -144,11 +147,11 @@ class Pipeline:
         
         combined = np.zeros_like(dir_sobel)
         combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1    
-        #combined[(mag_binary == 1)] = 1
+        # combined[(mag_binary == 1)] = 1
         return combined
         
-    def color_threshold(self, img):
-        s_thresh=(170, 255)
+    def color_threshold_s(self, img):
+        s_thresh=(150, 255)
 
         img = np.copy(img)
         # Convert to HLS color space and separate the S channel
@@ -159,6 +162,33 @@ class Pipeline:
         if s_thresh:
             s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
         return s_binary
+
+    def channel_threshold(self, channel, thresh):
+        # Threshold color channel
+        binary = np.zeros_like(channel)
+        if thresh:
+            binary[(channel >= thresh[0]) & (channel <= thresh[1])] = 1
+        return binary
+
+    def color_threshold(self, img):
+        # Convert to HLS color space and separate the S channel
+        hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
+        # channel = img[:,:,0]
+        # return self.channel_threshold(channel, (40, 70))
+        return self.image_threshold(img, [
+            (40, 70),
+            (100, 255),
+            (0, 255),
+        ])
+
+
+    def image_threshold(self, img, thresh):
+        b0 = self.channel_threshold(img[:,:,0], thresh[0])
+        b1 = self.channel_threshold(img[:,:,1], thresh[1])
+        b2 = self.channel_threshold(img[:,:,2], thresh[2])
+        return b0 & b1 & b2
+
+
 
     def combined(self, img):
         sobel = self.sobel(img)
@@ -444,9 +474,9 @@ class Pipeline:
     def unwarp(self, img):
         return cv2.warpPerspective(img, self.Minv, self.img_shape, flags=cv2.INTER_LINEAR)
 
-
     def draw_unwarped(self, undist, warped, left_fitx, right_fitx, ploty):
         image = undist
+
         # Create an image to draw the lines on
         warp_zero = np.zeros_like(warped).astype(np.uint8)
         color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -461,16 +491,9 @@ class Pipeline:
         # Draw the lane onto the warped blank image
         cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
-        # # Warp the blank back to original image space using inverse perspective matrix (Minv)
-        # newwarp = cv2.warpPerspective(color_warp, self.Minv, (image.shape[1], image.shape[0])) 
-
         newwarp = self.unwarp(color_warp)
 
-        # Combine the result with the original image
-        result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
-        #plt.imshow(result)
-        #plt.show()
-        return result
+        return cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
 
     def draw_text(self, img, text, org, scale, color):      
         org = [org[0], org[1]]
@@ -510,21 +533,39 @@ class Pipeline:
         if self.M is None:
             self.M, self.Minv = self.perspective_transform(
                 vp = (640, 420),
-                tl = (520, 450),
+                tl = (540, 450),
                 bl = (30, 615),
                 out = self.img_shape,
             )
 
+
         img_orig = img.copy()
 
-        img = self.combined(img)
+        #self.view(self.warp(img))
+
+        if False:
+            img_sobel = self.sobel(img)
+            img_color = self.color_threshold(img)
+            zero_channel = np.zeros_like(img_color) # create a zero color channel
+            # img = np.array(cv2.merge((zero_channel, img, zero_channel)),np.uint8) # make window pixels green
+            warpage = np.dstack((img_sobel, img_color, zero_channel)) * 255 # making the original road pixels 3 color channels
+            out = cv2.addWeighted(img_orig, 0.5, warpage.astype(np.uint8), 1, 0)
+            return out
+
+
         # img = self.sobel(img)
         # img = self.color_threshold(img)
+        img = self.combined(img)
         img = self.mask_image_binary(img, self.cfg.get('mask', None))
         img_masked = img.copy()
 
-
-        img = self.warp(img)
+        if True:
+            zero_channel = np.zeros_like(img_masked) # create a zero color channel
+            img_out = np.dstack((zero_channel, img_masked, zero_channel)) * 255 # making the original road pixels 3 color channels
+            return cv2.addWeighted(img_orig, 0.5, img_out.astype(np.uint8), 1, 0)
+        #img = self.warp(img)
+        
+        return img
 
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
@@ -551,7 +592,7 @@ class Pipeline:
 
     def view(self, img):
         cv2.imshow('img', img)
-        cv2.waitKey()   
+        cv2.waitKey()           
 
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
