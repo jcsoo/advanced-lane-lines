@@ -108,7 +108,6 @@ class Pipeline:
         mag_thresh = (75, 100)
         dir_thresh = (0.7, 1.3)    
 
-        img = np.copy(img)
         # Convert to HLS color space and separate the L channel
         hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
         l_channel = hls[:,:,1]
@@ -145,12 +144,12 @@ class Pipeline:
         if dir_thresh:
             dir_binary[(dir_sobel >= dir_thresh[0]) & (dir_sobel <= dir_thresh[1])] = 1
         
-        combined = np.zeros_like(dir_sobel)
+        combined = np.zeros_like(l_channel)
         combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1    
         # combined[(mag_binary == 1)] = 1
         return combined
         
-    def color_threshold_s(self, img):
+    def color_threshold(self, img):
         s_thresh=(150, 255)
 
         img = np.copy(img)
@@ -163,23 +162,27 @@ class Pipeline:
             s_binary[(s_channel >= s_thresh[0]) & (s_channel <= s_thresh[1])] = 1
         return s_binary
 
-    def channel_threshold(self, channel, thresh):
-        # Threshold color channel
-        binary = np.zeros_like(channel)
-        if thresh:
-            binary[(channel >= thresh[0]) & (channel <= thresh[1])] = 1
-        return binary
-
-    def color_threshold(self, img):
+    def color_yellow(self, img):
         # Convert to HLS color space and separate the S channel
-        hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS).astype(np.float)
+        hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
         # channel = img[:,:,0]
-        # return self.channel_threshold(channel, (40, 70))
         return self.image_threshold(img, [
-            (40, 70),
-            (100, 255),
+            (0, 128),
             (0, 255),
-        ])
+            (150, 255),
+        ])        
+
+    def color_white(self, img):
+        # Convert to HLS color space and separate the S channel
+        hls = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+        # channel = img[:,:,0]
+        return self.image_threshold(img, [
+            (0, 255),
+            (200, 255),
+            (0, 255),
+        ])        
+
+
 
 
     def image_threshold(self, img, thresh):
@@ -187,6 +190,12 @@ class Pipeline:
         b1 = self.channel_threshold(img[:,:,1], thresh[1])
         b2 = self.channel_threshold(img[:,:,2], thresh[2])
         return b0 & b1 & b2
+
+    def channel_threshold(self, channel, thresh):
+        binary = np.zeros_like(channel)
+        if thresh:
+            binary[(channel >= thresh[0]) & (channel <= thresh[1])] = 1
+        return binary
 
 
 
@@ -523,8 +532,12 @@ class Pipeline:
 
         return M, Minv
 
+    def process_video(self, img):
+        return cv2.cvtColor(self.process(cv2.cvtColor(img, cv2.COLOR_RGB2BGR)), cv2.COLOR_BGR2RGB)
 
     def process(self, img):
+        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        # Image is BGR Colorspace
         img_h, img_w = img.shape[:2]        
 
         if self.img_shape is None:
@@ -538,10 +551,7 @@ class Pipeline:
                 out = self.img_shape,
             )
 
-
-        img_orig = img.copy()
-
-        #self.view(self.warp(img))
+        # self.view(self.warp(img))
 
         if False:
             img_sobel = self.sobel(img)
@@ -553,19 +563,23 @@ class Pipeline:
             return out
 
 
-        # img = self.sobel(img)
-        # img = self.color_threshold(img)
-        img = self.combined(img)
-        img = self.mask_image_binary(img, self.cfg.get('mask', None))
-        img_masked = img.copy()
+        # img_sobel = self.sobel(img)
+        #self.view(img_sobel)
+        img_yellow = self.color_yellow(img)
+        img_white = self.color_white(img)
+        
+        #img = self.combined(img)
+        img_yellow = self.mask_image_binary(img_yellow, self.cfg.get('mask', None))
+        img_white = self.mask_image_binary(img_white, self.cfg.get('mask', None))
 
         if True:
-            zero_channel = np.zeros_like(img_masked) # create a zero color channel
-            img_out = np.dstack((zero_channel, img_masked, zero_channel)) * 255 # making the original road pixels 3 color channels
-            return cv2.addWeighted(img_orig, 0.5, img_out.astype(np.uint8), 1, 0)
+            zero_channel = np.zeros_like(img_yellow) # create a zero color channel
+            img_out = np.dstack((img_yellow, img_white, zero_channel)) * 255 # making the original road pixels 3 color channels
+            img_out = cv2.addWeighted(img, 0.5, img_out, 0.8, 0)
+            # self.view(img_out)
         #img = self.warp(img)
         
-        return img
+        return img_out
 
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
@@ -597,9 +611,9 @@ class Pipeline:
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
         print(path, out_path)
-        clip = VideoFileClip(path).subclip(0,5)
-        # clip = VideoFileClip(path)
-        out_clip = clip.fl_image(self.process)
+        # clip = VideoFileClip(path).subclip(0, 1)
+        clip = VideoFileClip(path)
+        out_clip = clip.fl_image(self.process_video)
         out_clip.write_videofile(out_path, audio=False)
 
 def main(args):
