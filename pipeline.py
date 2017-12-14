@@ -284,8 +284,15 @@ class Pipeline:
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds] 
 
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
+        if leftx.any() & lefty.any():
+            left_fit = np.polyfit(lefty, leftx, 2)
+        else:
+            left_fit = self.fit_left
+
+        if rightx.any() & righty.any():
+            right_fit = np.polyfit(righty, rightx, 2)
+        else:
+            right_fit = self.fit_right
 
         if plot:
             # Generate x and y values for plotting
@@ -330,8 +337,17 @@ class Pipeline:
         rightx = nonzerox[right_lane_inds]
         righty = nonzeroy[right_lane_inds]
         # Fit a second order polynomial to each
-        left_fit = np.polyfit(lefty, leftx, 2)
-        right_fit = np.polyfit(righty, rightx, 2)
+
+        if leftx.any() & lefty.any():
+            left_fit = np.polyfit(lefty, leftx, 2)
+        else:
+            left_fit = self.fit_left
+
+        if rightx.any() & righty.any():
+            right_fit = np.polyfit(righty, rightx, 2)
+        else:
+            right_fit = self.fit_right        
+
         # Generate x and y values for plotting
         ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
         left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
@@ -590,7 +606,7 @@ class Pipeline:
             img_out = cv2.addWeighted(img, 0.5, img_out, 0.5, 0)
             self.view(img_out)        
 
-        img_warped = self.warp(img)
+        img_warped = self.warp(img_combined)
 
         # self.view(img_warped)
         # (fit_left, fit_right, out_img) = self.window_conv(img)
@@ -601,7 +617,11 @@ class Pipeline:
         # (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
 
-        out_img = self.draw_unwarped(img, out_img, left_fit_left, right_fit_left, ploty)
+        img_out = self.draw_unwarped(img, img_warped, left_fit_left, right_fit_left, ploty)
+        if True:
+            tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            img_out = cv2.addWeighted(img_out, 0.5, tmp, 0.5, 0)
+            # self.view(img_out)        
 
         # pipeline.view(out_img)
         # self.display_lanes(img, fit)
@@ -611,8 +631,8 @@ class Pipeline:
 
         #self.draw_text(img, 'Hello, World', (-500, 100), 2.0, WHITE)
         #self.draw_poly(img, [(0,0), (0, 100), (100, 100), (100, 0)], False, WHITE)
-        self.view(out_img)
-        return out_img
+        # self.view(out_img)
+        return img_out
 
     def run(self, path):
         return self.process(self.load_image(path))
