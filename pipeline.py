@@ -105,7 +105,7 @@ class Pipeline:
         k_size = 3
         sx_thresh = None #(20, 100), 
         sy_thresh = None #(0, 10), 
-        mag_thresh = (75, 100)
+        mag_thresh = (75, 150)
         dir_thresh = (0.7, 1.3)    
 
         # Convert to HLS color space and separate the L channel
@@ -144,10 +144,11 @@ class Pipeline:
         if dir_thresh:
             dir_binary[(dir_sobel >= dir_thresh[0]) & (dir_sobel <= dir_thresh[1])] = 1
         
-        combined = np.zeros_like(l_channel)
+        combined = np.zeros_like(img[:,:,0])
         combined[((gradx == 1) & (grady == 1)) | ((mag_binary == 1) & (dir_binary == 1))] = 1    
         # combined[(mag_binary == 1)] = 1
         return combined
+       
         
     def color_threshold(self, img):
         s_thresh=(150, 255)
@@ -564,32 +565,43 @@ class Pipeline:
 
 
         # img_sobel = self.sobel(img)
+        # print(img_sobel.dtype)
         #self.view(img_sobel)
         img_yellow = self.color_yellow(img)
         img_white = self.color_white(img)
         
         #img = self.combined(img)
-        img_yellow = self.mask_image_binary(img_yellow, self.cfg.get('mask', None))
-        img_white = self.mask_image_binary(img_white, self.cfg.get('mask', None))
+        if False:
+            # img_sobel = self.mask_image_binary(img_sobel, self.cfg.get('mask', None))
+            img_yellow = self.mask_image_binary(img_yellow, self.cfg.get('mask', None))
+            img_white = self.mask_image_binary(img_white, self.cfg.get('mask', None))
 
-        if True:
+        if False:
             zero_channel = np.zeros_like(img_yellow) # create a zero color channel
             img_out = np.dstack((img_yellow, img_white, zero_channel)) * 255 # making the original road pixels 3 color channels
+            # img_out = np.dstack((zero_channel, zero_channel, img_sobel)) * 255 # making the original road pixels 3 color channels
             img_out = cv2.addWeighted(img, 0.5, img_out, 0.8, 0)
-            # self.view(img_out)
-        #img = self.warp(img)
-        
-        return img_out
+            self.view(img_out)        
 
+        img_combined = img_yellow | img_white
+
+        if False:
+            img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            img_out = cv2.addWeighted(img, 0.5, img_out, 0.5, 0)
+            self.view(img_out)        
+
+        img_warped = self.warp(img)
+
+        # self.view(img_warped)
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
-        self.fit_left, self.fit_right, out_img = self.find_lines(img)
-        self.fit_left, self.fit_right, left_fit_left, right_fit_left, ploty, out_img = self.find_lines_with_priors(img, self.fit_left, self.fit_right)
+        self.fit_left, self.fit_right, out_img = self.find_lines(img_warped)
+        self.fit_left, self.fit_right, left_fit_left, right_fit_left, ploty, out_img = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right)
 
-        (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
+        # (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
 
-        out_img = self.draw_unwarped(img_orig, img, left_fit_left, right_fit_left, ploty)
+        out_img = self.draw_unwarped(img, out_img, left_fit_left, right_fit_left, ploty)
 
         # pipeline.view(out_img)
         # self.display_lanes(img, fit)
@@ -599,6 +611,7 @@ class Pipeline:
 
         #self.draw_text(img, 'Hello, World', (-500, 100), 2.0, WHITE)
         #self.draw_poly(img, [(0,0), (0, 100), (100, 100), (100, 0)], False, WHITE)
+        self.view(out_img)
         return out_img
 
     def run(self, path):
@@ -611,8 +624,8 @@ class Pipeline:
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
         print(path, out_path)
-        # clip = VideoFileClip(path).subclip(0, 1)
-        clip = VideoFileClip(path)
+        clip = VideoFileClip(path).subclip(0, 5)
+        # clip = VideoFileClip(path)
         out_clip = clip.fl_image(self.process_video)
         out_clip.write_videofile(out_path, audio=False)
 
