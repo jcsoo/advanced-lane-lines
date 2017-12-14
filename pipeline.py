@@ -706,61 +706,92 @@ class Pipeline:
 
         min_points = 200
 
-        prev_left, prev_right = self.fit_left, self.fit_right        
-        
-        if self.num_left < min_points or self.num_right < min_points:
-            print("find_lines")
-            fit_left, fit_right, num_left, num_right = self.find_lines(img_warped)
+        fit_left, fit_right = self.fit_left, self.fit_right       
+        num_left, num_right = 0, 0 
+        # fit_left, num_left = None, 0
+        # fit_right, num_right = None, 0
 
-            if num_left > min_points:
-                if prev_left is None:
-                    prev_left = fit_left
-                diff_left = prev_left - fit_left                
-                    
-                # print('diff_left', diff_left)                
 
-                self.fit_left = fit_left
-                self.num_left = num_left
-            else:
-                print("Lost left lane 1")
-                self.num_left = 0
+        if fit_left is not None:                
+            fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=20)
+            # print('left', self.fit_left, fit_left, num_left)
+            # if num_left < min_points:
+            #     print("Lost left lane 2")
+            #     self.num_left = 0
+            # else:
+            #     self.fit_left = fit_left
+            #     self.num_left = num_left
 
-            if num_right > min_points:
-                if prev_right is None:
-                    prev_right = fit_right
-                diff_right = prev_right - fit_right
-                # print('diff_right', diff_right)
+        if fit_right is not None:                
+            fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=20)
+            # print("right", self.fit_right, fit_right, num_right)
+            # if num_right < min_points:
+            #     print("Lost right lane 2")
+            #     self.num_right = 0
+            # else:
+            #     self.fit_right = fit_right
+            #     self.num_right = num_right
 
-                self.fit_right = fit_right
-                self.num_right = num_right
-            else:
-                print("Lost right lane 1")                
-                self.num_right = 0
+        # if fit_left[0] == fit_right[0]:
+        #     print("Both lanes the same")
+        #     fit_left, num_left = None, 0
+        #     fit_right, num_right = None, 0
+
+
+        if fit_left is None or fit_right is None:
+            left_x, right_x = self.find_base_lines(img_warped)
+
+            if fit_left is None:
+                fit_left, num_left = self.find_line(img_warped, left_x)
+
+            if fit_right is None:
+                fit_right, num_right = self.find_line(img_warped, right_x)
+
+        if num_left < min_points:
+            print("Lost left")
+            print(fit_left, num_left)
         else:
-            if self.fit_left is not None:                
-                fit_left, num_left = self.find_line_with_priors(img_warped, self.fit_left, margin=20)
-                # print('left', self.fit_left, fit_left, num_left)
-                if num_left < min_points:
-                    print("Lost left lane 2")
-                    self.num_left = 0
-                else:
-                    self.fit_left = fit_left
-                    self.num_left = num_left
+            self.fit_left = fit_left
+            self.num_left = num_left
 
-            if self.fit_right is not None:                
-                fit_right, num_right = self.find_line_with_priors(img_warped, self.fit_right, margin=20)
-                # print("right", self.fit_right, fit_right, num_right)
-                if num_right < min_points:
-                    print("Lost right lane 2")
-                    self.num_right = 0
-                else:
-                    self.fit_right = fit_right
-                    self.num_right = num_right
+        if num_right < min_points:
+            print("Lost Right")
+            print(fit_right, num_right)
+        else:
+            self.fit_right = fit_right
+            self.num_right = num_right
 
-            if self.fit_left[0] == self.fit_right[0]:
-                print("Both lanes the same")
-                self.num_left = 0
-                self.num_right = 0
+
+        # if num_left < min_points or num_right < min_points:
+        #     print("find_lines")
+        #     fit_left, fit_right, num_left, num_right = self.find_lines(img_warped)
+
+        #     if num_left > min_points:
+        #         if prev_left is None:
+        #             prev_left = fit_left
+        #         diff_left = prev_left - fit_left                
+                    
+        #         # print('diff_left', diff_left)                
+
+        #         self.fit_left = fit_left
+        #         self.num_left = num_left
+        #     else:
+        #         print("Lost left lane 1")
+        #         self.num_left = 0
+
+        #     if num_right > min_points:
+        #         if prev_right is None:
+        #             prev_right = fit_right
+        #         diff_right = prev_right - fit_right
+        #         # print('diff_right', diff_right)
+
+        #         self.fit_right = fit_right
+        #         self.num_right = num_right
+        #     else:
+        #         print("Lost right lane 1")                
+        #         self.num_right = 0
+
+
 
 
             # self.plot_fits(img_warped, self.fit_left, self.fit_right)
