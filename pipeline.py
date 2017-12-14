@@ -18,6 +18,9 @@ class Pipeline:
     def __init__(self, cfg):
         self.cfg = cfg
         self.loader = ImageLoader(cfg['calibration_path'])
+        self.img_shape = None
+        self.M = None
+        self.Minv = None
         self.fit_left = None
         self.fit_right = None
 
@@ -435,10 +438,14 @@ class Pipeline:
         # # Example values: 632.1 m    626.2 m
         # return left_curverad, right_curverad
 
-    def warp(self, img, M, img_size):
-        return cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
+    def warp(self, img):
+        return cv2.warpPerspective(img, self.M, self.img_shape, flags=cv2.INTER_LINEAR)
 
-    def draw_unwarped(self, undist, warped, left_fitx, right_fitx, ploty, Minv):
+    def unwarp(self, img):
+        return cv2.warpPerspective(img, self.Minv, self.img_shape, flags=cv2.INTER_LINEAR)
+
+
+    def draw_unwarped(self, undist, warped, left_fitx, right_fitx, ploty):
         image = undist
         # Create an image to draw the lines on
         warp_zero = np.zeros_like(warped).astype(np.uint8)
@@ -454,8 +461,11 @@ class Pipeline:
         # Draw the lane onto the warped blank image
         cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
-        # Warp the blank back to original image space using inverse perspective matrix (Minv)
-        newwarp = cv2.warpPerspective(color_warp, Minv, (image.shape[1], image.shape[0])) 
+        # # Warp the blank back to original image space using inverse perspective matrix (Minv)
+        # newwarp = cv2.warpPerspective(color_warp, self.Minv, (image.shape[1], image.shape[0])) 
+
+        newwarp = self.unwarp(color_warp)
+
         # Combine the result with the original image
         result = cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
         #plt.imshow(result)
@@ -493,8 +503,18 @@ class Pipeline:
 
     def process(self, img):
         img_h, img_w = img.shape[:2]        
-        img_shape = (img_w, img_h)
-        
+
+        if self.img_shape is None:
+            self.img_shape = (img_w, img_h)
+
+        if self.M is None:
+            self.M, self.Minv = self.perspective_transform(
+                vp = (640, 420),
+                tl = (520, 450),
+                bl = (30, 615),
+                out = self.img_shape,
+            )
+
         img_orig = img.copy()
 
         img = self.combined(img)
@@ -504,18 +524,7 @@ class Pipeline:
         img_masked = img.copy()
 
 
-        # Center = 640, 420
-        # [600, 450]
-        # src = np.array([(575, 450), (705, 450), (100, 680), (1180, 680)], np.float32)
-
-        M, Minv = self.perspective_transform(
-            vp = (640, 420),
-            tl = (520, 450),
-            bl = (30, 615),
-            out = img_shape,
-        )
-
-        img = self.warp(img, M, img_shape)
+        img = self.warp(img)
 
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
@@ -525,7 +534,7 @@ class Pipeline:
         (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
 
-        out_img = self.draw_unwarped(img_orig, img, left_fit_left, right_fit_left, ploty, Minv)
+        out_img = self.draw_unwarped(img_orig, img, left_fit_left, right_fit_left, ploty)
 
         # pipeline.view(out_img)
         # self.display_lanes(img, fit)
