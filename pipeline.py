@@ -475,7 +475,26 @@ class Pipeline:
     def draw_poly(self, img, points, closed, color, thickness=1):
         cv2.polylines(img, [np.array(points, np.int32)], closed, color, thickness)
 
+    def perspective_transform(self, vp, tl, bl, out):
+        # Symmetric perspective transform based on vanishing point, top left, bottom left
+
+        src = np.array([
+            (tl[0], tl[1]), 
+            (vp[0] + (vp[0] - tl[0]), tl[1]), 
+            (bl[0], bl[1]), 
+            (vp[0] + (vp[0] - bl[0]), bl[1])],
+        np.float32)
+        dst = np.array([(0, 0), (out[0], 0), (0, out[1]), (out[0], out[1])], np.float32)
+        M = cv2.getPerspectiveTransform(src, dst)
+        Minv = cv2.getPerspectiveTransform(dst, src)
+
+        return M, Minv
+
+
     def process(self, img):
+        img_h, img_w = img.shape[:2]        
+        img_shape = (img_w, img_h)
+        
         img_orig = img.copy()
 
         img = self.combined(img)
@@ -489,38 +508,24 @@ class Pipeline:
         # [600, 450]
         # src = np.array([(575, 450), (705, 450), (100, 680), (1180, 680)], np.float32)
 
-        vp = (640, 420)
-        tl = (520, 450)
-        bl = (30, 615)
+        M, Minv = self.perspective_transform(
+            vp = (640, 420),
+            tl = (520, 450),
+            bl = (30, 615),
+            out = img_shape,
+        )
 
-        src = np.array([
-            (tl[0], tl[1]), 
-            (vp[0] + (vp[0] - tl[0]), tl[1]), 
-            (bl[0], bl[1]), 
-            (vp[0] + (vp[0] - bl[0]), bl[1])],
-        np.float32)
-        dst = np.array([(0, 0), (1280, 0), (0, 720), (1280, 720)], np.float32)
+        img = self.warp(img, M, img_shape)
 
-        M = cv2.getPerspectiveTransform(src, dst)
-        Minv = cv2.getPerspectiveTransform(dst, src)
+        # (fit_left, fit_right, out_img) = self.window_conv(img)
 
-        img = self.warp(img, M, (1280, 720))
+        self.fit_left, self.fit_right, out_img = self.find_lines(img)
+        self.fit_left, self.fit_right, left_fit_left, right_fit_left, ploty, out_img = self.find_lines_with_priors(img, self.fit_left, self.fit_right)
 
-        # (fitx, fity, out_img) = self.window_conv(img)
-
-        if self.fit_left is None:
-            (fitx, fity, out_img) = self.find_lines(img)
-            self.fit_left, self.fit_right = fitx, fity
-
-        fitx, fity = self.fit_left, self.fit_right
-        (fitx, fity, left_fitx, right_fitx, ploty, out_img) = self.find_lines_with_priors(img, fitx, fity)
-
-        self.fit_left, self.fit_right = fitx, fity
-
-        (left_curve, right_curve) = self.curve_radius_px(fitx, fity, 720)
+        (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
 
-        out_img = self.draw_unwarped(img_orig, img, left_fitx, right_fitx, ploty, Minv)
+        out_img = self.draw_unwarped(img_orig, img, left_fit_left, right_fit_left, ploty, Minv)
 
         # pipeline.view(out_img)
         # self.display_lanes(img, fit)
@@ -542,8 +547,8 @@ class Pipeline:
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
         print(path, out_path)
-        #clip = VideoFileClip(path).subclip(0,5)
-        clip = VideoFileClip(path)
+        clip = VideoFileClip(path).subclip(0,5)
+        # clip = VideoFileClip(path)
         out_clip = clip.fl_image(self.process)
         out_clip.write_videofile(out_path, audio=False)
 
