@@ -211,7 +211,78 @@ class Pipeline:
         combined_binary[(s_binary == 1) | (sobel == 1)] = 1        
         return combined_binary
 
-    def find_lines(self, img, plot=False):
+    def find_base_lines(self, img):
+        # Histogram of Warped Image
+        histogram = np.sum(img[img.shape[0]//2:,:], axis=0)
+        # Find midpoint
+        midpoint = np.int(histogram.shape[0]/2)
+        # Find left peak
+        leftx_base = np.argmax(histogram[:midpoint])
+        # Find right peak
+        rightx_base = np.argmax(histogram[midpoint:]) + midpoint
+
+        return leftx_base, rightx_base
+
+    def find_line(self, img, x_base, nwindows=9, margin=100, minpix=20):
+        binary_warped = img
+
+        # Set height of windows
+        window_height = np.int(binary_warped.shape[0]/nwindows)
+
+        # Identify the x and y positions of all nonzero pixels in the image
+        nonzero = binary_warped.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+
+        # Current positions to be updated for each window
+        x_current = x_base
+
+        # Create empty lists to receive left and right lane pixel indices
+        lane_inds = []
+
+        # Step through the windows one by one
+        for window in range(nwindows):
+            # Identify window boundaries in x and y (and right and left)
+            win_y_low = binary_warped.shape[0] - (window+1)*window_height
+            win_y_high = binary_warped.shape[0] - window*window_height
+            win_x_low = x_current - margin
+            win_x_high = x_current + margin
+
+            # Identify the nonzero pixels in x and y within the window
+            good_inds = ((nonzeroy >= win_y_low) & (nonzeroy < win_y_high) & (nonzerox >= win_x_low) &  (nonzerox < win_x_high)).nonzero()[0]
+
+            # Append these indices to the lists
+            lane_inds.append(good_inds)
+
+            # If you found > minpix pixels, recenter next window on their mean position
+            if len(good_inds) > minpix:
+                x_current = np.int(np.mean(nonzerox[good_inds]))
+
+        # Concatenate the arrays of indices
+        lane_inds = np.concatenate(lane_inds)
+
+        # Extract left and right line pixel positions
+        x = nonzerox[lane_inds]
+        y = nonzeroy[lane_inds] 
+
+        num_x = np.count_nonzero(x)
+
+        if num_x > 0 :
+            fit = np.polyfit(y, x, 2)
+        else:
+            fit = None
+        
+        return fit, num_x
+
+    def find_lines(self, img):
+        left_x, right_x = self.find_base_lines(img)
+
+        left_fit, left_num = self.find_line(img, left_x)
+        right_fit, right_num = self.find_line(img, right_x)
+
+        return left_fit, right_fit, left_num, right_num
+
+    def find_lines_orig(self, img, plot=False):
         ### From Class Notes
 
         # Choose the number of sliding windows
@@ -311,96 +382,87 @@ class Pipeline:
             plt.xlim(0, 1280)
             plt.ylim(720, 0)    
             plt.show()
-        return (left_fit, right_fit, out_img)    
+        return (left_fit, right_fit)    
 
-    def find_lines_with_priors(self, img, left_fit, right_fit, min_points=500, plot=False):
+    def find_line_with_priors(self, img, fit, margin=50):
+        nonzero = img.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+
+        lane_inds = (
+            (nonzerox > (fit[0] * (nonzeroy ** 2) + fit[1] * nonzeroy + fit[2] - margin)) &
+            (nonzerox < (fit[0] * (nonzeroy ** 2) + fit[1] * nonzeroy + fit[2] + margin))
+        )         
+
+        x = nonzerox[lane_inds]
+        y = nonzeroy[lane_inds]        
+
+        num = np.count_nonzero(x)
+
+        if num > 0:
+            fit = np.polyfit(y, x, 2)
+        else:
+            fit = None
+
+        return fit, num
+
+    def find_lines_with_priors(self, img, left_fit, right_fit, margin=50, min_points=500, plot=False):
         binary_warped = img
         # Assume you now have a new warped binary image 
         # from the next frame of video (also called "binary_warped")
         # It's now much easier to find line pixels!
 
-        margin = 50
+        lfit, lnum = self.find_line_with_priors(img, left_fit, margin)
+        rfit, rnum = self.find_line_with_priors(img, right_fit, margin)
 
-        nonzero = binary_warped.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
-
-        # Find indices of points within margin of left lane and right lane polynomial
-
-        left_lane_inds = (
-            (nonzerox > (left_fit[0] * (nonzeroy ** 2) + left_fit[1] * nonzeroy + left_fit[2] - margin)) &
-            (nonzerox < (left_fit[0] * (nonzeroy ** 2) + left_fit[1] * nonzeroy + left_fit[2] + margin))
-        ) 
-        right_lane_inds = (
-            (nonzerox > (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy +right_fit[2] - margin)) &
-            (nonzerox < (right_fit[0] * (nonzeroy ** 2) + right_fit[1] * nonzeroy + right_fit[2] + margin))
-        )  
-
-        # Again, extract left and right line pixel positions
-
-        leftx = nonzerox[left_lane_inds]
-        lefty = nonzeroy[left_lane_inds]
-
-        rightx = nonzerox[right_lane_inds]
-        righty = nonzeroy[right_lane_inds]
-
-
-
-        print(np.count_nonzero(leftx), np.count_nonzero(lefty), np.count_nonzero(rightx), np.count_nonzero(righty))
-
-        # print(leftx.count_non_zero(), lefty.count_non_zero(), rightx.count_non_zero(), righty.count_non_zero())
-
-
-        # Fit a second order polynomial to each
-
-        if np.count_nonzero(leftx) > 0:
-            left_fit = np.polyfit(lefty, leftx, 2)
+        if lnum < min_points:
+            lfit = left_fit
         
-            
+        if rnum < min_points:
+            rfit = right_fit
 
-        if np.count_nonzero(rightx) > 0:
-            right_fit = np.polyfit(righty, rightx, 2)
+        return lfit, rfit, lnum, rnum
 
-        if plot:
-            ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0] )
-            left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-            right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
-
-            # Generate x and y values for plotting
-            # Create an image to draw on and an image to show the selection window
-
-            out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
-            
-            window_img = np.zeros_like(out_img)
-            # Color in left and right line pixels
-            
-            out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
-            out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
-
-            # Generate a polygon to illustrate the search window area
-            # And recast the x and y points into usable format for cv2.fillPoly()
-            left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
-            left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, 
-                                        ploty])))])                                    
-            left_line_pts = np.hstack((left_line_window1, left_line_window2))
-            right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
-            right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, 
-                                        ploty])))])
-            right_line_pts = np.hstack((right_line_window1, right_line_window2))
-
-            # Draw the lane onto the warped blank image
-            cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
-            cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
-            result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
         
-            plt.imshow(result)
-            plt.plot(left_fitx, ploty, color='yellow')
-            plt.plot(right_fitx, ploty, color='yellow')
-            plt.xlim(0, 1280)
-            plt.ylim(720, 0) 
-            plt.show()
+    def plot_fits(self, binary_warped, left_fit, right_fit):
+        ploty = np.linspace(0, binary_warped.shape[0] - 1, binary_warped.shape[0] )
+        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
 
-        return (left_fit, right_fit, np.count_nonzero(leftx), np.count_nonzero(rightx))
+        # Generate x and y values for plotting
+        # Create an image to draw on and an image to show the selection window
+
+        out_img = np.dstack((binary_warped, binary_warped, binary_warped)) * 255
+        
+        window_img = np.zeros_like(img)
+        # Color in left and right line pixels
+        
+        out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
+        out_img[nonzeroy[right_lane_inds], nonzerox[right_lane_inds]] = [0, 0, 255]
+
+        # Generate a polygon to illustrate the search window area
+        # And recast the x and y points into usable format for cv2.fillPoly()
+        left_line_window1 = np.array([np.transpose(np.vstack([left_fitx-margin, ploty]))])
+        left_line_window2 = np.array([np.flipud(np.transpose(np.vstack([left_fitx+margin, 
+                                    ploty])))])                                    
+        left_line_pts = np.hstack((left_line_window1, left_line_window2))
+        right_line_window1 = np.array([np.transpose(np.vstack([right_fitx-margin, ploty]))])
+        right_line_window2 = np.array([np.flipud(np.transpose(np.vstack([right_fitx+margin, 
+                                    ploty])))])
+        right_line_pts = np.hstack((right_line_window1, right_line_window2))
+
+        # Draw the lane onto the warped blank image
+        cv2.fillPoly(window_img, np.int_([left_line_pts]), (0,255, 0))
+        cv2.fillPoly(window_img, np.int_([right_line_pts]), (0,255, 0))
+        result = cv2.addWeighted(out_img, 1, window_img, 0.3, 0)
+    
+        plt.imshow(result)
+        plt.plot(left_fitx, ploty, color='yellow')
+        plt.plot(right_fitx, ploty, color='yellow')
+        plt.xlim(0, 1280)
+        plt.ylim(720, 0) 
+        plt.show()
+
                
 
 
@@ -518,6 +580,12 @@ class Pipeline:
         return cv2.warpPerspective(img, self.Minv, self.img_shape, flags=cv2.INTER_LINEAR)
 
     def draw_unwarped(self, undist, warped, left_fit, right_fit):
+        if left_fit is None or right_fit is None:
+            print("No lines")
+            return undist
+        if self.num_left == 0 or self.num_right == 0:
+            return undist
+
         image = undist
         binary_warped = warped
 
@@ -580,6 +648,8 @@ class Pipeline:
         # Image is BGR Colorspace
         img_h, img_w = img.shape[:2]        
 
+        self.base_lines = None          
+
         if self.img_shape is None:
             self.img_shape = (img_w, img_h)
 
@@ -610,7 +680,7 @@ class Pipeline:
         img_white = self.color_white(img)
         
         #img = self.combined(img)
-        if False:
+        if True:
             # img_sobel = self.mask_image_binary(img_sobel, self.cfg.get('mask', None))
             img_yellow = self.mask_image_binary(img_yellow, self.cfg.get('mask', None))
             img_white = self.mask_image_binary(img_white, self.cfg.get('mask', None))
@@ -634,16 +704,80 @@ class Pipeline:
         # self.view(img_warped)
         # (fit_left, fit_right, out_img) = self.window_conv(img)
 
-        # if self.num_left < 500 or self.num_right < 500:
-        self.fit_left, self.fit_right, out_img = self.find_lines(img_warped)
-        self.fit_left, self.fit_right, self.num_left, self.num_right = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right)
+        min_points = 200
+
+        prev_left, prev_right = self.fit_left, self.fit_right        
+        
+        if self.num_left < min_points or self.num_right < min_points:
+            print("find_lines")
+            fit_left, fit_right, num_left, num_right = self.find_lines(img_warped)
+
+            if num_left > min_points:
+                if prev_left is None:
+                    prev_left = fit_left
+                diff_left = prev_left - fit_left                
+                    
+                # print('diff_left', diff_left)                
+
+                self.fit_left = fit_left
+                self.num_left = num_left
+            else:
+                print("Lost left lane 1")
+                self.num_left = 0
+
+            if num_right > min_points:
+                if prev_right is None:
+                    prev_right = fit_right
+                diff_right = prev_right - fit_right
+                # print('diff_right', diff_right)
+
+                self.fit_right = fit_right
+                self.num_right = num_right
+            else:
+                print("Lost right lane 1")                
+                self.num_right = 0
+        else:
+            if self.fit_left is not None:                
+                fit_left, num_left = self.find_line_with_priors(img_warped, self.fit_left, margin=20)
+                # print('left', self.fit_left, fit_left, num_left)
+                if num_left < min_points:
+                    print("Lost left lane 2")
+                    self.num_left = 0
+                else:
+                    self.fit_left = fit_left
+                    self.num_left = num_left
+
+            if self.fit_right is not None:                
+                fit_right, num_right = self.find_line_with_priors(img_warped, self.fit_right, margin=20)
+                # print("right", self.fit_right, fit_right, num_right)
+                if num_right < min_points:
+                    print("Lost right lane 2")
+                    self.num_right = 0
+                else:
+                    self.fit_right = fit_right
+                    self.num_right = num_right
+
+            if self.fit_left[0] == self.fit_right[0]:
+                print("Both lanes the same")
+                self.num_left = 0
+                self.num_right = 0
+
+
+            # self.plot_fits(img_warped, self.fit_left, self.fit_right)
+
+        # self.fit_left, self.fit_right, self.num_left, self.num_right = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right, min_points=min_points)
 
         # (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
         # print(left_curve, right_curve)
+        
+        # print(self.fit_left, self.fit_right)
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-        if False:
-            tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+
+        if True:
+            # Overlay img_combined
+            z = np.zeros_like(img_combined)
+            tmp = np.dstack((z, z, img_combined)) * 255 # making the original road pixels 3 color channels
             img_out = cv2.addWeighted(img_out, 0.5, tmp, 0.5, 0)
             # self.view(img_out)        
 
@@ -668,8 +802,8 @@ class Pipeline:
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
         print(path, out_path)
-        clip = VideoFileClip(path).subclip(0, 5)
-        # clip = VideoFileClip(path)
+        # clip = VideoFileClip(path).subclip(0, 5)
+        clip = VideoFileClip(path)
         out_clip = clip.fl_image(self.process_video)
         out_clip.write_videofile(out_path, audio=False)
 
