@@ -686,7 +686,7 @@ class Pipeline:
             img_conv = conv.process_image(img)
             img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
             img_combined[img_combined > 0.1] = 1.0
-            img_combined = self.mask_image_binary(img_combined, self.cfg.get('mask', None))            
+            # img_combined = self.mask_image_binary(img_combined, self.cfg.get('mask', None))            
             
         # print(img_combined.shape, img_combined.dtype)
 
