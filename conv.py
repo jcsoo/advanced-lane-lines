@@ -44,7 +44,7 @@ def filter_stripes(img, thresh=0.05):
     img = np.concatenate([
         np.zeros((420, img.shape[1])),
         filter_vline(img[420:500,:], (2, 2)),
-        filter_vline(img[500:570,:], (3, 6)),
+        filter_vline(img[500:570,:], (3, 4)),
         filter_vline(img[570:640,:], (4, 9)),
         filter_vline(img[640:720,:], (8, 12)),
     ])
@@ -59,9 +59,10 @@ def filter_stripes(img, thresh=0.05):
 def process_image(img):
     orig = img.copy()
     img = equalize_hist(img)
-    img = np.log(hls_f32(img) / 2.0 + 1.0)
-    img[:,:,0] = filter_thresh(img[:,:,0],[-0.6, -0.50])
-    img[:,:,1] = filter_stripes(img[:,:,1], 0.02)
+    img = np.log(hsv_f32(img) / 2.0 + 1.0)
+    # img = np.log(hls_f32(img) / 2.0 + 1.0)
+    img[:,:,0] = filter_thresh(img[:,:,0],[-0.57, -0.5])
+    img[:,:,1] = filter_stripes(img[:,:,1], 0.01)
     img[:,:,2] = filter_stripes(img[:,:,2], 0.02)
 
 
@@ -76,7 +77,7 @@ def merge_images(im1, a1, im2, v2):
         im2 = np.dstack([im2, im2, im2])
     if im2.dtype != np.uint8:
         im2 = (127 + (im2 * 127.0)).astype(np.uint8)
-    print(im1.shape, im1.dtype, im2.shape, im2.dtype)
+    # print(im1.shape, im1.dtype, im2.shape, im2.dtype)
     return cv2.addWeighted(im1, a1, im2, v2, 0)
 
 def identity(img):
