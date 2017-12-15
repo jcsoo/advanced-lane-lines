@@ -781,7 +781,7 @@ class Pipeline:
             if False:
                 self.fit_left = fit_left
                 self.num_left = num_left
-            else:
+            elif fit_left is not None:
                 self.fit_arr_left.append(fit_left)
                 self.fit_arr_left = self.fit_arr_left[-n_fit:]
                 self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
@@ -796,7 +796,7 @@ class Pipeline:
             if False:
                 self.fit_right = fit_right
                 self.num_right = num_right
-            else:              
+            elif fit_right is not None:              
                 self.fit_arr_right.append(fit_right)
                 self.fit_arr_right = self.fit_arr_right[-n_fit:]
                 self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
