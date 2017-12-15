@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+from perspective import *
 from calibrate import ImageLoader
 
 def load(path):
@@ -74,8 +75,11 @@ def midpoint_adjust(img):
         img_mid[:,i,:] = np.abs(img_mid[:,i,:] - mid_mean)
     return img_mid
 
+def score(*args):
+    print(args)
+    return 0
+
 def process_image(img):
-    orig = img.copy()
     img = equalize_hist(img)
     img = np.log(hsv_f32(img) / 2.0 + 1.0)
 
@@ -83,20 +87,9 @@ def process_image(img):
     img[:,:,1] = filter_stripes(img[:,:,1], 0.005, 20.0, wmul=2)
     img[:,:,2] = filter_stripes(img[:,:,2], 0.002, 20.0)
 
-    # img_out = np.zeros(img.shape[:2], dtype=np.float32)
-    v = np.array([0.5, 1.0, 1.0]).transpose()
-    img = np.dot(img, v)
-    print(img.shape)
+    return img
 
-
-
-    # img[:,:,0] = 0
-    # img[:,:,1] = 0
-    # img[:,:,2] = 0
-    # img = np.uint8(255 * img / np.max(img))
-    return merge_images(orig, 0.0, img, 1)
-
-def merge_images(im1, a1, im2, v2):
+def merge(im1, a1, im2, v2):
     if len(im2.shape) < 3:
         im2 = np.dstack([im2, im2, im2])
     if im2.dtype != np.uint8:
@@ -142,7 +135,8 @@ def filter_avg(img, size=(5, 5)):
 
 def main(args):
     for arg in args:
-        show(arg, process_image(load(arg)))
+        img = load(arg)
+        show(arg, merge(img, 0.5, process_image(img), 0.5))
 
 
 if __name__ == '__main__':

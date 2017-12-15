@@ -733,10 +733,10 @@ class Pipeline:
             #     self.num_right = num_right
 
         if fit_left is not None and fit_right is not None:
-        if fit_left[0] == fit_right[0]:
-            print("Both lanes the same")
-            fit_left, num_left = None, 0
-            fit_right, num_right = None, 0
+            if fit_left[0] == fit_right[0]:
+                print("Both lanes the same")
+                fit_left, num_left = None, 0
+                fit_right, num_right = None, 0
 
 
         if fit_left is None or fit_right is None:
