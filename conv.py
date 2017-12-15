@@ -46,9 +46,9 @@ def filter_stripes(img, bias=0.05, mul=5.0, wmul=1):
     img = np.concatenate([
         np.zeros((420, img.shape[1])),
         filter_vline(img[420:500,:], (2, 4 * wmul)),
-        filter_vline(img[500:570,:], (3, 6 * wmul)),
-        filter_vline(img[570:640,:], (4, 9 * wmul)),
-        filter_vline(img[640:720,:], (8, 12 * wmul)),
+        filter_vline(img[500:570,:], (2, 6 * wmul)),
+        filter_vline(img[570:640,:], (4, 8 * wmul)),
+        filter_vline(img[640:720,:], (8, 10 * wmul)),
     ])
 
     img -= bias
