@@ -224,7 +224,7 @@ class Pipeline:
 
         return leftx_base, rightx_base
 
-    def find_line(self, img, x_base, nwindows=9, margin=100, minpix=20):
+    def find_line(self, img, x_base, nwindows=24, margin=30, minpix=20):
         binary_warped = img
 
         # Set height of windows

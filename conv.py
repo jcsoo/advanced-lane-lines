@@ -85,9 +85,9 @@ def process_image(img):
 
     # img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
     img[:,:,0] = 0
-    img[:,:,1] = filter_stripes(img[:,:,1], 0.005, 10.0, wmul=2)
-    # img[:,:,2] = filter_stripes(img[:,:,2], 0.005, 50.0)
-    img[:,:,2] = filter_thresh(img[:,:,2], [0.3, 1.0])
+    img[:,:,1] = filter_stripes(img[:,:,1], 0.01, 10.0, wmul=2)
+    img[:,:,2] = filter_stripes(img[:,:,2], 0.01, 50.0)
+    # img[:,:,2] = filter_thresh(img[:,:,2], [0.4, 1.0])
 
     # img[:,:,1] = 0
 
