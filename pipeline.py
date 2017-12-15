@@ -736,7 +736,7 @@ class Pipeline:
 
         if fit_left is not None:                
             fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=10)
-            print('left', fit_left, num_left)
+            # print('left', fit_left, num_left)
             if num_left < min_points:
                 print("Lost left lane")
                 left_fit, num_left = None, 0
@@ -746,7 +746,7 @@ class Pipeline:
 
         if fit_right is not None:                
             fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=10)
-            print("right", fit_right, num_right)
+            # print("right", fit_right, num_right)
             if num_right < min_points:
                 print("Lost right lane")
                 right_fit, num_right = None, 0
@@ -774,7 +774,7 @@ class Pipeline:
 
         if num_left < min_points:
             print("Lost left, using last fit")
-            print(fit_left, num_left)
+            # print(fit_left, num_left)
             fit_left = self.fit_left
             num_right = self.num_right
         else:
@@ -789,21 +789,21 @@ class Pipeline:
 
         if num_right < min_points:
             print("Lost right, using last fit")
-            print(fit_right, num_right)
+            # print(fit_right, num_right)
             fit_right = self.fit_right
             num_right = self.num_right
         else:
             if False:
                 self.fit_right = fit_right
                 self.num_right = num_right
-            else:
+            else:              
                 self.fit_arr_right.append(fit_right)
                 self.fit_arr_right = self.fit_arr_right[-n_fit:]
                 self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
                 self.num_right = num_right
 
-        print(fit_left, fit_right)
-        print(self.fit_left, self.fit_right)
+        # print(fit_left, fit_right)
+        # print(self.fit_left, self.fit_right)
 
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
