@@ -114,7 +114,7 @@ def filter_vline(img, size):
         np.ones(size, np.float32),
         np.zeros(size, np.float32),
     ], axis=1) - 0.5) / (size[0] * size[1] * 4)
-    return cv2.filter2D(img, -1, kernel)
+    return cv2.filter2D(img, -1, kernel, borderType=cv2.BORDER_REFLECT)
     
 
 def filter_avg(img, size=(5, 5)):
