@@ -242,6 +242,9 @@ class Pipeline:
         # Create empty lists to receive left and right lane pixel indices
         lane_inds = []
 
+
+        last_delta = 0
+
         # Step through the windows one by one
         for window in range(nwindows):
             # Identify window boundaries in x and y (and right and left)
@@ -258,7 +261,11 @@ class Pipeline:
 
             # If you found > minpix pixels, recenter next window on their mean position
             if len(good_inds) > minpix:
+                x_last = x_current
                 x_current = np.int(np.mean(nonzerox[good_inds]))
+                last_delta = x_current - x_last
+            else:
+                x_current += last_delta
 
         # Concatenate the arrays of indices
         lane_inds = np.concatenate(lane_inds)
@@ -717,7 +724,9 @@ class Pipeline:
         # fit_left, num_left = None, 0
         # fit_right, num_right = None, 0
 
-        if self.frames % 10 == 0:
+        # Reset every N rames
+
+        if True or self.frames % 10 == 0:
             # Reset priors so find_line_with_priors is not used
             fit_left, fit_right = None, None
 
