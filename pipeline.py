@@ -5,6 +5,7 @@ import sys, os, pickle
 from moviepy.editor import VideoFileClip
 
 from calibrate import ImageLoader
+import conv
 
 PIPELINE_CFG = {
     'calibration_path': 'calibration.p',
@@ -672,18 +673,21 @@ class Pipeline:
             out = cv2.addWeighted(img_orig, 0.5, warpage.astype(np.uint8), 1, 0)
             return out
 
-
-        # img_sobel = self.sobel(img)
-        # print(img_sobel.dtype)
-        #self.view(img_sobel)
-        img_yellow = self.color_yellow(img)
-        img_white = self.color_white(img)
-        
-        #img = self.combined(img)
-        if True:
+        if False:
+            img_yellow = self.color_yellow(img)
+            img_white = self.color_white(img)
+            
             # img_sobel = self.mask_image_binary(img_sobel, self.cfg.get('mask', None))
             img_yellow = self.mask_image_binary(img_yellow, self.cfg.get('mask', None))
             img_white = self.mask_image_binary(img_white, self.cfg.get('mask', None))
+            img_combined = img_yellow | img_white
+        else:
+            img_conv = conv.process_image(img)
+            img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
+            img_combined[img_combined > 0.1] = 1.0
+            img_combined = self.mask_image_binary(img_combined, self.cfg.get('mask', None))            
+            
+        # print(img_combined.shape, img_combined.dtype)
 
         if False:
             zero_channel = np.zeros_like(img_yellow) # create a zero color channel
@@ -692,12 +696,13 @@ class Pipeline:
             img_out = cv2.addWeighted(img, 0.5, img_out, 0.8, 0)
             self.view(img_out)        
 
-        img_combined = img_yellow | img_white
+     
 
         if False:
             img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             img_out = cv2.addWeighted(img, 0.5, img_out, 0.5, 0)
             self.view(img_out)        
+
 
         img_warped = self.warp(img_combined)
 
@@ -741,7 +746,7 @@ class Pipeline:
 
         if fit_left is None or fit_right is None:
             left_x, right_x = self.find_base_lines(img_warped)
-
+            # print(left_x, right_x)
             if fit_left is None:
                 fit_left, num_left = self.find_line(img_warped, left_x)
 
@@ -763,65 +768,19 @@ class Pipeline:
             self.num_right = num_right
 
 
-        # if num_left < min_points or num_right < min_points:
-        #     print("find_lines")
-        #     fit_left, fit_right, num_left, num_right = self.find_lines(img_warped)
-
-        #     if num_left > min_points:
-        #         if prev_left is None:
-        #             prev_left = fit_left
-        #         diff_left = prev_left - fit_left                
-                    
-        #         # print('diff_left', diff_left)                
-
-        #         self.fit_left = fit_left
-        #         self.num_left = num_left
-        #     else:
-        #         print("Lost left lane 1")
-        #         self.num_left = 0
-
-        #     if num_right > min_points:
-        #         if prev_right is None:
-        #             prev_right = fit_right
-        #         diff_right = prev_right - fit_right
-        #         # print('diff_right', diff_right)
-
-        #         self.fit_right = fit_right
-        #         self.num_right = num_right
-        #     else:
-        #         print("Lost right lane 1")                
-        #         self.num_right = 0
-
-
-
-
-            # self.plot_fits(img_warped, self.fit_left, self.fit_right)
-
-        # self.fit_left, self.fit_right, self.num_left, self.num_right = self.find_lines_with_priors(img_warped, self.fit_left, self.fit_right, min_points=min_points)
-
-        # (left_curve, right_curve) = self.curve_radius_px(self.fit_left, self.fit_right, 720)
-        # print(left_curve, right_curve)
-        
-        # print(self.fit_left, self.fit_right)
-
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-
-        if True:
+        if False:
             # Overlay img_combined
             z = np.zeros_like(img_combined)
-            tmp = np.dstack((z, z, img_combined)) * 255 # making the original road pixels 3 color channels
-            img_out = cv2.addWeighted(img_out, 0.5, tmp, 0.5, 0)
+            tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            # print(img_out.dtype, tmp.dtype)
+            img_out = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
+            # self.view(img_out)        
+        if True:
+            # Overlay img_combined
+            img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
             # self.view(img_out)        
 
-        # pipeline.view(out_img)
-        # self.display_lanes(img, fit)
-
-        # plt.plot(histogram)
-        # plt.show()
-
-        #self.draw_text(img, 'Hello, World', (-500, 100), 2.0, WHITE)
-        #self.draw_poly(img, [(0,0), (0, 100), (100, 100), (100, 0)], False, WHITE)
-        # self.view(out_img)
         return img_out
 
     def run(self, path):
