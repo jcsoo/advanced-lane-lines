@@ -657,8 +657,8 @@ class Pipeline:
         if self.M is None:
             self.M, self.Minv = self.perspective_transform(
                 vp = (640, 420),
-                tl = (540, 450),
-                bl = (30, 615),
+                tl = (500, 480),
+                bl = (0, 700),
                 out = self.img_shape,
             )
 
@@ -699,8 +699,8 @@ class Pipeline:
      
 
         if False:
-            img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
-            img_out = cv2.addWeighted(img, 0.5, img_out, 0.5, 0)
+            # img_out = np.dstack((img_conv, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            img_out = cv2.addWeighted(img, 0.5, img_conv.astype(np.uint8), 0.5, 0)
             self.view(img_out)        
 
 
@@ -715,6 +715,9 @@ class Pipeline:
         num_left, num_right = 0, 0 
         # fit_left, num_left = None, 0
         # fit_right, num_right = None, 0
+
+        if True:
+            fit_left, fit_right = None, None
 
 
         if fit_left is not None:                
