@@ -61,21 +61,40 @@ def filter_stripes(img, bias=0.05, mul=5.0, wmul=1):
     # img[:,:,0] = -1.0
     return img
 
+def midpoint_adjust(img):
+    # Sample patch
+
+    mid_x = int(img.shape[1] / 2)
+    margin = 16
+    mid = img[:, (mid_x - margin):(mid_x + margin),:]
+    mid_mean = mid.mean(axis=1)
+
+    img_mid = img.copy()
+    for i in range(img.shape[1]):
+        img_mid[:,i,:] = np.abs(img_mid[:,i,:] - mid_mean)
+    return img_mid
+
 def process_image(img):
     orig = img.copy()
     img = equalize_hist(img)
     img = np.log(hsv_f32(img) / 2.0 + 1.0)
-    # img = np.log(hls_f32(img) / 2.0 + 1.0)
-    # img[:,:,0] = filter_thresh(img[:,:,0],[0.032, 0.044])
+
     img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
     img[:,:,1] = filter_stripes(img[:,:,1], 0.005, 20.0, wmul=2)
     img[:,:,2] = filter_stripes(img[:,:,2], 0.002, 20.0)
+
+    # img_out = np.zeros(img.shape[:2], dtype=np.float32)
+    v = np.array([0.5, 1.0, 1.0]).transpose()
+    img = np.dot(img, v)
+    print(img.shape)
+
+
 
     # img[:,:,0] = 0
     # img[:,:,1] = 0
     # img[:,:,2] = 0
     # img = np.uint8(255 * img / np.max(img))
-    return merge_images(orig, 0.5, img, 0.5)
+    return merge_images(orig, 0.0, img, 1)
 
 def merge_images(im1, a1, im2, v2):
     if len(im2.shape) < 3:
