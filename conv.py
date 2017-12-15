@@ -21,12 +21,12 @@ def show(name, img):
 def process_image(img):
     orig = img.copy()
     img = hls_f32(img)
-    print(img.shape)
-    img -= img.mean()
+    img[:,:,1] -= img.mean()
+    img[:,:,2] -= img.mean()
     img = np.concatenate([
-        np.zeros((450, img.shape[1], 3)),
-        filter_vline(img[450:540,:], (2, 3)), # range [-1.0,1.0]
-        filter_vline(img[540:640,:], (2, 8)), # range [-1.0,1.0]
+        np.zeros((420, img.shape[1], 3)),
+        filter_vline(img[420:500,:], (2, 3)), # range [-1.0,1.0]
+        filter_vline(img[500:640,:], (2, 8)), # range [-1.0,1.0]
         filter_vline(img[640:720,:], (2, 12)), # range [-1.0,1.0]
     ])
 
@@ -34,8 +34,10 @@ def process_image(img):
     img[img <= thresh] = -1.0
     img[img > thresh] = 1.0
     img[:,:,0] = -1.0
+    # img[:,:,1] = -1.0
+    # img[:,:,2] = -1.0
     # img = np.uint8(255 * img / np.max(img))
-    return merge_images(orig, 0.5, img, 0.25)
+    return merge_images(orig, 0.0, img, 0.5)
 
 def merge_images(im1, a1, im2, v2):
     if len(im2.shape) < 3:
