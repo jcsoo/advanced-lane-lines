@@ -24,9 +24,12 @@ class Pipeline:
         self.Minv = None
         self.fit_left = None
         self.fit_right = None
+        self.fit_arr_left = []
+        self.fit_arr_right = []
         self.num_left = 0
         self.num_right = 0
         self.frames = 0
+
 
     def load_image(self, path):
         return self.loader.load_bgr(path)
@@ -592,8 +595,8 @@ class Pipeline:
         if left_fit is None or right_fit is None:
             print("No lines")
             return undist
-        if self.num_left == 0 or self.num_right == 0:
-            return undist
+        # if self.num_left == 0 or self.num_right == 0:
+        #     return undist
 
         image = undist
         binary_warped = warped
@@ -765,7 +768,9 @@ class Pipeline:
                 fit_left, num_left = self.find_line(img_warped, left_x)
 
             if fit_right is None:
-                fit_right, num_right = self.find_line(img_warped, right_x)
+                fit_right, num_right = self.find_line(img_warped, right_x)        
+
+        n_fit = 8
 
         if num_left < min_points:
             print("Lost left, using last fit")
@@ -773,8 +778,14 @@ class Pipeline:
             fit_left = self.fit_left
             num_right = self.num_right
         else:
-            self.fit_left = fit_left
-            self.num_left = num_left
+            if False:
+                self.fit_left = fit_left
+                self.num_left = num_left
+            else:
+                self.fit_arr_left.append(fit_left)
+                self.fit_arr_left = self.fit_arr_left[-n_fit:]
+                self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
+                self.num_left = num_left
 
         if num_right < min_points:
             print("Lost right, using last fit")
@@ -782,8 +793,17 @@ class Pipeline:
             fit_right = self.fit_right
             num_right = self.num_right
         else:
-            self.fit_right = fit_right
-            self.num_right = num_right
+            if False:
+                self.fit_right = fit_right
+                self.num_right = num_right
+            else:
+                self.fit_arr_right.append(fit_right)
+                self.fit_arr_right = self.fit_arr_right[-n_fit:]
+                self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
+                self.num_right = num_right
+
+        print(fit_left, fit_right)
+        print(self.fit_left, self.fit_right)
 
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
