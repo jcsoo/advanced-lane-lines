@@ -20,21 +20,38 @@ def show(name, img):
 
 def process_image(img):
     orig = img.copy()
+
+    if False:
+        # Global Histogram Equalization
+        img[:,:,1] = cv2.equalizeHist(img[:,:,1])
+        img[:,:,2] = cv2.equalizeHist(img[:,:,2])
+
+    if False:
+        # Striped Histogram Equalization
+        steps = 4
+        step = int(img.shape[0] / steps)
+        for i in range(steps):
+            img_row = img[(i * step):((i + 1) * step),:,:]
+            img_row[:,:,1] = cv2.equalizeHist(img_row[:,:,1])
+            img_row[:,:,2] = cv2.equalizeHist(img_row[:,:,2])
+
     img = hls_f32(img)
-    img[:,:,1] -= img.mean()
-    img[:,:,2] -= img.mean()
+
     img = np.concatenate([
         np.zeros((420, img.shape[1], 3)),
-        filter_vline(img[420:500,:], (2, 2)), # range [-1.0,1.0]
-        filter_vline(img[500:570,:], (3, 6)), # range [-1.0,1.0]
-        filter_vline(img[570:640,:], (4, 8)), # range [-1.0,1.0]
-        filter_vline(img[640:720,:], (8, 12)), # range [-1.0,1.0]
+        filter_vline(img[420:500,:], (2, 2)),
+        filter_vline(img[500:570,:], (3, 6)),
+        filter_vline(img[570:640,:], (4, 8)),
+        filter_vline(img[640:720,:], (8, 12)),
     ])
 
     thresh = 0.05 
-    img[img <= thresh] = -1.0
-    img[img > thresh] = 1.0
+    img -= thresh
+
+    img[img < 0] = -1.0
+    img[img > 0] = 1.0
     img[:,:,0] = -1.0
+
     # img[:,:,1] = -1.0
     # img[:,:,2] = -1.0
     # img = np.uint8(255 * img / np.max(img))
