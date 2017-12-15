@@ -25,9 +25,10 @@ def process_image(img):
     img[:,:,2] -= img.mean()
     img = np.concatenate([
         np.zeros((420, img.shape[1], 3)),
-        filter_vline(img[420:500,:], (2, 3)), # range [-1.0,1.0]
-        filter_vline(img[500:640,:], (2, 8)), # range [-1.0,1.0]
-        filter_vline(img[640:720,:], (2, 12)), # range [-1.0,1.0]
+        filter_vline(img[420:500,:], (2, 2)), # range [-1.0,1.0]
+        filter_vline(img[500:570,:], (3, 6)), # range [-1.0,1.0]
+        filter_vline(img[570:640,:], (4, 8)), # range [-1.0,1.0]
+        filter_vline(img[640:720,:], (8, 12)), # range [-1.0,1.0]
     ])
 
     thresh = 0.05 
@@ -37,7 +38,7 @@ def process_image(img):
     # img[:,:,1] = -1.0
     # img[:,:,2] = -1.0
     # img = np.uint8(255 * img / np.max(img))
-    return merge_images(orig, 0.0, img, 0.5)
+    return merge_images(orig, 0.5, img, 0.5)
 
 def merge_images(im1, a1, im2, v2):
     if len(im2.shape) < 3:
