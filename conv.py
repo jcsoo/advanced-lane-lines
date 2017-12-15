@@ -12,8 +12,10 @@ def load(path):
     return loader.load_bgr(path)
 
 def show(name, img):
-    if img.dtype == np.float32:
-        img = (127 + (img * 127.0)).astype(np.uint8)
+    print(img.dtype)
+    if img.dtype == np.float32 or img.dtype == np.float64:
+        print("to uint8")
+        img = (img * 255.0).astype(np.uint8)
 
     cv2.imshow(name, img)
     cv2.waitKey()
@@ -40,19 +42,22 @@ def filter_thresh(img, thresh):
     img[img > -1.0] = 1.0
     return img
 
-def filter_stripes(img, thresh=0.05):
+def filter_stripes(img, bias=0.05, mul=5.0, wmul=1):
     img = np.concatenate([
         np.zeros((420, img.shape[1])),
-        filter_vline(img[420:500,:], (2, 2)),
-        filter_vline(img[500:570,:], (3, 4)),
-        filter_vline(img[570:640,:], (4, 9)),
-        filter_vline(img[640:720,:], (8, 12)),
+        filter_vline(img[420:500,:], (2, 4 * wmul)),
+        filter_vline(img[500:570,:], (3, 6 * wmul)),
+        filter_vline(img[570:640,:], (4, 9 * wmul)),
+        filter_vline(img[640:720,:], (8, 12 * wmul)),
     ])
 
-    img -= thresh
+    img -= bias
+    img *= mul
 
-    img[img < 0] = -1.0
-    img[img > 0] = 1.0
+    img[img < 0] = 0.0
+    img[img > 1.0] = 1.0
+    # img[img > 0] = 1.0
+    # img = img ** 2
     # img[:,:,0] = -1.0
     return img
 
@@ -61,14 +66,14 @@ def process_image(img):
     img = equalize_hist(img)
     img = np.log(hsv_f32(img) / 2.0 + 1.0)
     # img = np.log(hls_f32(img) / 2.0 + 1.0)
-    img[:,:,0] = filter_thresh(img[:,:,0],[-0.57, -0.5])
-    img[:,:,1] = filter_stripes(img[:,:,1], 0.01)
-    img[:,:,2] = filter_stripes(img[:,:,2], 0.02)
+    # img[:,:,0] = filter_thresh(img[:,:,0],[0.032, 0.044])
+    img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
+    img[:,:,1] = filter_stripes(img[:,:,1], 0.005, 20.0, wmul=2)
+    img[:,:,2] = filter_stripes(img[:,:,2], 0.002, 20.0)
 
-
-    # img[:,:,0] = -1.0
-    # img[:,:,1] = -1.0
-    # img[:,:,2] = -1.0
+    # img[:,:,0] = 0
+    # img[:,:,1] = 0
+    # img[:,:,2] = 0
     # img = np.uint8(255 * img / np.max(img))
     return merge_images(orig, 0.5, img, 0.5)
 
@@ -76,7 +81,7 @@ def merge_images(im1, a1, im2, v2):
     if len(im2.shape) < 3:
         im2 = np.dstack([im2, im2, im2])
     if im2.dtype != np.uint8:
-        im2 = (127 + (im2 * 127.0)).astype(np.uint8)
+        im2 = (im2 * 255.0).astype(np.uint8)
     # print(im1.shape, im1.dtype, im2.shape, im2.dtype)
     return cv2.addWeighted(im1, a1, im2, v2, 0)
 
@@ -87,19 +92,19 @@ def gray(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HLS)[:,:,1]
 
 def gray_f32(img):
-    return (gray(img).astype(np.float32) / 128.0) - 1.0
+    return (gray(img).astype(np.float32) / 255.0)
 
 def hsv(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
 def hsv_f32(img):
-    return (hsv(img).astype(np.float32) / 128.0) - 1.0
+    return (hsv(img).astype(np.float32) / 255.0)
 
 def hls(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
 
 def hls_f32(img):
-    return (hls(img).astype(np.float32) / 128.0) - 1.0
+    return (hls(img).astype(np.float32) / 255.0)
 
 
 def filter_vline(img, size):
