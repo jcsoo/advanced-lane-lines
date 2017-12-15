@@ -19,14 +19,29 @@ def show(name, img):
     cv2.waitKey()
 
 def process_image(img):
+    orig = img.copy()
     img = gray_f32(img)
     img -= img.mean()
-    img = filter_vline(img, (2, 8)) # range [-1.0,1.0]
+    img = np.concatenate([
+        np.zeros((450, img.shape[1])),
+        filter_vline(img[450:540,:], (2, 4)), # range [-1.0,1.0]
+        filter_vline(img[540:640,:], (2, 8)), # range [-1.0,1.0]
+        filter_vline(img[640:720,:], (2, 12)), # range [-1.0,1.0]
+    ])
+
     thresh = 0.05 
     img[img <= thresh] = -1.0
     img[img > thresh] = 1.0
     # img = np.uint8(255 * img / np.max(img))
-    return img
+    return merge_images(orig, 0.5, img, 1.0)
+
+def merge_images(im1, a1, im2, v2):
+    if len(im2.shape) < 3:
+        im2 = np.dstack([im2, im2, im2])
+    if im2.dtype != np.uint8:
+        im2 = (127 + (im2 * 127.0)).astype(np.uint8)
+    print(im1.shape, im1.dtype, im2.shape, im2.dtype)
+    return cv2.addWeighted(im1, a1, im2, v2, 0)
 
 def identity(img):
     return img
