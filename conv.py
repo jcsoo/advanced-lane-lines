@@ -18,9 +18,7 @@ def show(name, img):
     cv2.imshow(name, img)
     cv2.waitKey()
 
-def process_image(img):
-    orig = img.copy()
-
+def equalize_hist(img):
     if False:
         # Global Histogram Equalization
         img[:,:,1] = cv2.equalizeHist(img[:,:,1])
@@ -34,23 +32,32 @@ def process_image(img):
             img_row = img[(i * step):((i + 1) * step),:,:]
             img_row[:,:,1] = cv2.equalizeHist(img_row[:,:,1])
             img_row[:,:,2] = cv2.equalizeHist(img_row[:,:,2])
+    return img
 
-    img = hls_f32(img)
-
+def filter_stripes(img, thresh=0.05):
     img = np.concatenate([
-        np.zeros((420, img.shape[1], 3)),
+        np.zeros((420, img.shape[1])),
         filter_vline(img[420:500,:], (2, 2)),
         filter_vline(img[500:570,:], (3, 6)),
-        filter_vline(img[570:640,:], (4, 8)),
+        filter_vline(img[570:640,:], (4, 9)),
         filter_vline(img[640:720,:], (8, 12)),
     ])
 
-    thresh = 0.05 
     img -= thresh
 
     img[img < 0] = -1.0
     img[img > 0] = 1.0
+    # img[:,:,0] = -1.0
+    return img
+
+def process_image(img):
+    orig = img.copy()
+    img = equalize_hist(img)
+    img = hls_f32(img)
     img[:,:,0] = -1.0
+    img[:,:,1] = filter_stripes(img[:,:,1], 0.05)
+    img[:,:,2] = filter_stripes(img[:,:,2], 0.04)
+
 
     # img[:,:,1] = -1.0
     # img[:,:,2] = -1.0
