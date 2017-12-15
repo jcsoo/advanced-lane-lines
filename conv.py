@@ -20,11 +20,12 @@ def show(name, img):
 
 def process_image(img):
     orig = img.copy()
-    img = gray_f32(img)
+    img = hls_f32(img)
+    print(img.shape)
     img -= img.mean()
     img = np.concatenate([
-        np.zeros((450, img.shape[1])),
-        filter_vline(img[450:540,:], (2, 4)), # range [-1.0,1.0]
+        np.zeros((450, img.shape[1], 3)),
+        filter_vline(img[450:540,:], (2, 3)), # range [-1.0,1.0]
         filter_vline(img[540:640,:], (2, 8)), # range [-1.0,1.0]
         filter_vline(img[640:720,:], (2, 12)), # range [-1.0,1.0]
     ])
@@ -32,8 +33,9 @@ def process_image(img):
     thresh = 0.05 
     img[img <= thresh] = -1.0
     img[img > thresh] = 1.0
+    img[:,:,0] = -1.0
     # img = np.uint8(255 * img / np.max(img))
-    return merge_images(orig, 0.5, img, 1.0)
+    return merge_images(orig, 0.5, img, 0.25)
 
 def merge_images(im1, a1, im2, v2):
     if len(im2.shape) < 3:
@@ -51,6 +53,13 @@ def gray(img):
 
 def gray_f32(img):
     return (gray(img).astype(np.float32) / 128.0) - 1.0
+
+def hls(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+
+def hls_f32(img):
+    return (hls(img).astype(np.float32) / 128.0) - 1.0
+
 
 def filter_vline(img, size):
     kernel = (np.concatenate([
