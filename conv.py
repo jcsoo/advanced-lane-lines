@@ -34,6 +34,12 @@ def equalize_hist(img):
             img_row[:,:,2] = cv2.equalizeHist(img_row[:,:,2])
     return img
 
+def filter_thresh(img, thresh):
+    img[img < thresh[0]] = -1.0
+    img[img > thresh[1]] = -1.0
+    img[img > -1.0] = 1.0
+    return img
+
 def filter_stripes(img, thresh=0.05):
     img = np.concatenate([
         np.zeros((420, img.shape[1])),
@@ -53,12 +59,13 @@ def filter_stripes(img, thresh=0.05):
 def process_image(img):
     orig = img.copy()
     img = equalize_hist(img)
-    img = hls_f32(img)
-    img[:,:,0] = -1.0
-    img[:,:,1] = filter_stripes(img[:,:,1], 0.05)
-    img[:,:,2] = filter_stripes(img[:,:,2], 0.04)
+    img = np.log(hls_f32(img) / 2.0 + 1.0)
+    img[:,:,0] = filter_thresh(img[:,:,0],[-0.6, -0.50])
+    img[:,:,1] = filter_stripes(img[:,:,1], 0.02)
+    img[:,:,2] = filter_stripes(img[:,:,2], 0.02)
 
 
+    # img[:,:,0] = -1.0
     # img[:,:,1] = -1.0
     # img[:,:,2] = -1.0
     # img = np.uint8(255 * img / np.max(img))
@@ -80,6 +87,12 @@ def gray(img):
 
 def gray_f32(img):
     return (gray(img).astype(np.float32) / 128.0) - 1.0
+
+def hsv(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+def hsv_f32(img):
+    return (hsv(img).astype(np.float32) / 128.0) - 1.0
 
 def hls(img):
     return cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
