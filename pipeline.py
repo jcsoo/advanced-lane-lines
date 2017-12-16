@@ -31,6 +31,9 @@ class Pipeline:
         self.num_left = 0
         self.num_right = 0
         self.frames = 0
+        self.reset_frames = 1000
+        self.n_avg = 1
+        self.base_lines = None          
         self.stage = None
 
     def process(self, img):
@@ -40,7 +43,6 @@ class Pipeline:
 
         img_h, img_w = img.shape[:2]        
 
-        self.base_lines = None          
 
         if self.img_shape is None:
             self.img_shape = (img_w, img_h)
@@ -51,7 +53,7 @@ class Pipeline:
         if self.M is None:
             self.M, self.Minv = self.perspective_transform(
                 vp = (640, 0),
-                tl = (460, 60),
+                tl = (520, 40),
                 bl = (0, 220),
                 out = self.warp_shape,
             )
@@ -69,8 +71,10 @@ class Pipeline:
 
         # img_combined = np.dot(img_conv, np.array([1.0, 0.0, 0.0]).transpose() / 1.0)
         img_combined = img_conv[:,:,0] + img_conv[:,:,1] + img_conv[:,:,2]
-        img_combined[img_combined > 0.1] = 1.0       
-
+        # print(img_combined.min(), img_combined.mean(), img_combined.max())
+        img_combined[img_combined < 0.0] = 0
+        img_combined[img_combined > 0.0] = 1.0       
+        img_combined = img_combined.astype(np.uint8)
         if self.stage == 'COMB':
             img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             return cv2.addWeighted(img, 0.5, img_out.astype(np.uint8), 1, 0)            
@@ -83,9 +87,12 @@ class Pipeline:
 
 
         img_warped = self.warp(img_combined)
-        # self.view(img_warped)
+        if self.stage == 'WARPED':
+            # self.view(img_warped)
+            # return img_warped
+            return (img_warped * 255).astype(np.uint8)
 
-        min_points = 100
+        min_points = 50
 
         fit_left, fit_right = self.fit_left, self.fit_right       
         num_left, num_right = 0, 0 
@@ -94,30 +101,29 @@ class Pipeline:
 
         # Reset every N rames
 
-        if True or self.frames % 10 == 0:
+        reset = False
+
+        if self.frames % self.reset_frames == 0:
+            print('force reset frames')
             # Reset priors so find_line_with_priors is not used
-            fit_left, fit_right = None, None
+            # fit_left, fit_right = None, None
+            reset = True
 
 
-        if fit_left is not None:                
-            fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=10)
-            # print('left', fit_left, num_left)
-            if num_left < min_points:
-                print("Lost left lane")
-                left_fit, num_left = None, 0
-            # else:
-            #     self.fit_left = fit_left
-            #     self.num_left = num_left
+        if fit_left is None:                
+            print('fit_left is None')
+        else:
+            fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=20)
+            if fit_left is None:
+                print('find_line_with_priors lost left')
 
-        if fit_right is not None:                
-            fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=10)
-            # print("right", fit_right, num_right)
-            if num_right < min_points:
-                print("Lost right lane")
-                right_fit, num_right = None, 0
-            # else:
-            #     self.fit_right = fit_right
-            #     self.num_right = num_right
+        if fit_right is None:                
+            print('fit_right is None')
+        else:
+            fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=20)
+            if fit_right is None:
+                print('find_line_with_priors lost right')
+
 
         if fit_left is not None and fit_right is not None:
             if fit_left[0] == fit_right[0]:
@@ -126,60 +132,60 @@ class Pipeline:
                 fit_right, num_right = None, 0
 
 
-        if fit_left is None or fit_right is None:
-            left_x, right_x = self.find_base_lines(img_warped)
-            print(left_x, right_x)
+        if reset:
+            if self.base_lines is None:
+                self.base_lines = self.find_base_lines(img_warped)
+            
+            left_x, right_x = self.base_lines
             if fit_left is None:
+                print('search for left')
                 fit_left, num_left = self.find_line(img_warped, left_x)
 
             if fit_right is None:
+                print('search for right')
                 fit_right, num_right = self.find_line(img_warped, right_x)        
 
-        n_fit = 8
+        n_avg = self.n_avg
 
-        if num_left < min_points:
-            print("Lost left, using last fit")
+        if fit_left is None or num_left < min_points:
+            print("Lost left, using last fit", num_left)
             # print(fit_left, num_left)
             fit_left = self.fit_left
             num_right = self.num_right
         else:
-            if False:
-                self.fit_left = fit_left
-                self.num_left = num_left
-            elif fit_left is not None:
-                self.fit_arr_left.append(fit_left)
-                self.fit_arr_left = self.fit_arr_left[-n_fit:]
-                self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
-                self.num_left = num_left
+            self.fit_arr_left.append(fit_left)
+            self.fit_arr_left = self.fit_arr_left[-n_avg:]
+            self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
+            if self.fit_left is None:
+                print("fit_arr_left is None")
+            self.num_left = num_left
 
-        if num_right < min_points:
-            print("Lost right, using last fit")
+        if fit_right is None or num_right < min_points:
+            print("Lost right, using last fit", num_right)
             # print(fit_right, num_right)
             fit_right = self.fit_right
             num_right = self.num_right
-        else:
-            if False:
-                self.fit_right = fit_right
-                self.num_right = num_right
-            elif fit_right is not None:              
-                self.fit_arr_right.append(fit_right)
-                self.fit_arr_right = self.fit_arr_right[-n_fit:]
-                self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
-                self.num_right = num_right
+        else:         
+            self.fit_arr_right.append(fit_right)
+            self.fit_arr_right = self.fit_arr_right[-n_avg:]
+            self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
+            if self.fit_right is None:
+                print("fit_arr_right is None")
+            self.num_right = num_right
 
         # print(fit_left, fit_right)
         # print(self.fit_left, self.fit_right)
 
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-        if False:
+        if True:
             # Overlay img_combined
             z = np.zeros_like(img_combined)
             tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             # print(img_out.dtype, tmp.dtype)
             img_out = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
             # self.view(img_out)        
-        if True:
+        if False:
             # Overlay img_combined
             img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
             # self.view(img_out)        
@@ -201,7 +207,7 @@ class Pipeline:
 
         return leftx_base, rightx_base
 
-    def find_line(self, img, x_base, nwindows=24, margin=30, minpix=20):
+    def find_line(self, img, x_base, nwindows=18, margin=20, minpix=300):
         binary_warped = img
 
         # Set height of windows
@@ -267,7 +273,7 @@ class Pipeline:
 
         return left_fit, right_fit, left_num, right_num
 
-    def find_line_with_priors(self, img, fit, margin=50):
+    def find_line_with_priors(self, img, fit, margin=100):
         nonzero = img.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
@@ -289,7 +295,7 @@ class Pipeline:
 
         return fit, num
 
-    def find_lines_with_priors(self, img, left_fit, right_fit, margin=50, min_points=500, plot=False):
+    def find_lines_with_priors(self, img, left_fit, right_fit, margin=50, min_points=200, plot=False):
         binary_warped = img
         # Assume you now have a new warped binary image 
         # from the next frame of video (also called "binary_warped")

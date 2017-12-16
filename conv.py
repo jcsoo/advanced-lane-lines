@@ -119,7 +119,7 @@ def process_image(img):
     s = filter_stripes(img[:,:,1], -0.005, 10)
     v_s = filter_stripes(img[:,:,2], -0.005, 20)
     # Vary threshold based on local image
-    v_t = filter_thresh(img[:,:,2], (0.6, 1.0))
+    v_t = filter_thresh(img[:,:,2], (0.65, 1.0))
 
     h[h > 0] = 1.0
     s[s > 0] = 1.0
@@ -129,6 +129,7 @@ def process_image(img):
     kernel = np.ones((3, 3),np.uint8)
 
     # a = h * s 
+    # a_o = h * s
     a_o =  cv2.dilate(h, kernel, iterations=1) * s
     a_o[a_o > 0] = 1.0
     b = s * v_s
