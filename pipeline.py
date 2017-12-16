@@ -31,11 +31,13 @@ class Pipeline:
         self.num_left = 0
         self.num_right = 0
         self.frames = 0
-        self.stage = 'CONV'
+        self.stage = None
 
     def process(self, img):
         # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         # Image is BGR Colorspace
+        img = img[VCROP[0]:VCROP[1],:]
+
         img_h, img_w = img.shape[:2]        
 
         self.base_lines = None          
@@ -43,26 +45,37 @@ class Pipeline:
         if self.img_shape is None:
             self.img_shape = (img_w, img_h)
 
+        self.warp_shape = (1280, 800)
+
+
         if self.M is None:
             self.M, self.Minv = self.perspective_transform(
-                vp = (640, 420),
-                tl = (500, 480),
-                bl = (0, 700),
-                out = self.img_shape,
+                vp = (640, 0),
+                tl = (460, 60),
+                bl = (0, 220),
+                out = self.warp_shape,
             )
 
+        # print(self.img_shape)
+
+        # return self.warp(img, self.warp_shape)
         # self.view(self.warp(img))
 
-        img = img[VCROP[0]:VCROP[1],:]
         # print(img.shape)
         img_conv = conv.process_image(img)
 
         if self.stage == 'CONV':
             return cv2.addWeighted(img, 0.25, (img_conv * 255.0).astype(np.uint8), 1, 0)
 
-        img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
-        img_combined[img_combined > 0.1] = 1.0
-     
+        # img_combined = np.dot(img_conv, np.array([1.0, 0.0, 0.0]).transpose() / 1.0)
+        img_combined = img_conv[:,:,0] + img_conv[:,:,1] + img_conv[:,:,2]
+        img_combined[img_combined > 0.1] = 1.0       
+
+        if self.stage == 'COMB':
+            img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            return cv2.addWeighted(img, 0.5, img_out.astype(np.uint8), 1, 0)            
+
+
         if False:
             # img_out = np.dstack((img_conv, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             img_out = cv2.addWeighted(img, 0.5, img_conv.astype(np.uint8), 0.5, 0)
@@ -72,7 +85,7 @@ class Pipeline:
         img_warped = self.warp(img_combined)
         # self.view(img_warped)
 
-        min_points = 500
+        min_points = 100
 
         fit_left, fit_right = self.fit_left, self.fit_right       
         num_left, num_right = 0, 0 
@@ -115,7 +128,7 @@ class Pipeline:
 
         if fit_left is None or fit_right is None:
             left_x, right_x = self.find_base_lines(img_warped)
-            # print(left_x, right_x)
+            print(left_x, right_x)
             if fit_left is None:
                 fit_left, num_left = self.find_line(img_warped, left_x)
 
@@ -293,11 +306,15 @@ class Pipeline:
 
         return lfit, rfit, lnum, rnum
 
-    def warp(self, img):
-        return cv2.warpPerspective(img, self.M, self.img_shape, flags=cv2.INTER_LINEAR)
+    def warp(self, img, size=None):
+        if size is None:
+            size = self.warp_shape
+        return cv2.warpPerspective(img, self.M, size, flags=cv2.INTER_LINEAR)
 
-    def unwarp(self, img):
-        return cv2.warpPerspective(img, self.Minv, self.img_shape, flags=cv2.INTER_LINEAR)
+    def unwarp(self, img, size=None):
+        if size is None:
+            size = self.img_shape
+        return cv2.warpPerspective(img, self.Minv, size, flags=cv2.INTER_LINEAR)
 
     def draw_unwarped(self, undist, warped, left_fit, right_fit):
         if left_fit is None or right_fit is None:
