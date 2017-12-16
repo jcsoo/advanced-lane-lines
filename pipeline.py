@@ -30,6 +30,143 @@ class Pipeline:
         self.num_right = 0
         self.frames = 0
 
+    def process(self, img):
+        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        # Image is BGR Colorspace
+        img_h, img_w = img.shape[:2]        
+
+        self.base_lines = None          
+
+        if self.img_shape is None:
+            self.img_shape = (img_w, img_h)
+
+        if self.M is None:
+            self.M, self.Minv = self.perspective_transform(
+                vp = (640, 420),
+                tl = (500, 480),
+                bl = (0, 700),
+                out = self.img_shape,
+            )
+
+        # self.view(self.warp(img))
+
+        img = img[460:-80,]
+        return img
+
+
+        img_conv = conv.process_image(img)
+        img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
+        img_combined[img_combined > 0.1] = 1.0
+     
+        if False:
+            # img_out = np.dstack((img_conv, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            img_out = cv2.addWeighted(img, 0.5, img_conv.astype(np.uint8), 0.5, 0)
+            self.view(img_out)        
+
+
+        img_warped = self.warp(img_combined)
+        # self.view(img_warped)
+
+        min_points = 500
+
+        fit_left, fit_right = self.fit_left, self.fit_right       
+        num_left, num_right = 0, 0 
+        # fit_left, num_left = None, 0
+        # fit_right, num_right = None, 0
+
+        # Reset every N rames
+
+        if True or self.frames % 10 == 0:
+            # Reset priors so find_line_with_priors is not used
+            fit_left, fit_right = None, None
+
+
+        if fit_left is not None:                
+            fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=10)
+            # print('left', fit_left, num_left)
+            if num_left < min_points:
+                print("Lost left lane")
+                left_fit, num_left = None, 0
+            # else:
+            #     self.fit_left = fit_left
+            #     self.num_left = num_left
+
+        if fit_right is not None:                
+            fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=10)
+            # print("right", fit_right, num_right)
+            if num_right < min_points:
+                print("Lost right lane")
+                right_fit, num_right = None, 0
+            # else:
+            #     self.fit_right = fit_right
+            #     self.num_right = num_right
+
+        if fit_left is not None and fit_right is not None:
+            if fit_left[0] == fit_right[0]:
+                print("Both lanes the same")
+                fit_left, num_left = None, 0
+                fit_right, num_right = None, 0
+
+
+        if fit_left is None or fit_right is None:
+            left_x, right_x = self.find_base_lines(img_warped)
+            # print(left_x, right_x)
+            if fit_left is None:
+                fit_left, num_left = self.find_line(img_warped, left_x)
+
+            if fit_right is None:
+                fit_right, num_right = self.find_line(img_warped, right_x)        
+
+        n_fit = 8
+
+        if num_left < min_points:
+            print("Lost left, using last fit")
+            # print(fit_left, num_left)
+            fit_left = self.fit_left
+            num_right = self.num_right
+        else:
+            if False:
+                self.fit_left = fit_left
+                self.num_left = num_left
+            elif fit_left is not None:
+                self.fit_arr_left.append(fit_left)
+                self.fit_arr_left = self.fit_arr_left[-n_fit:]
+                self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
+                self.num_left = num_left
+
+        if num_right < min_points:
+            print("Lost right, using last fit")
+            # print(fit_right, num_right)
+            fit_right = self.fit_right
+            num_right = self.num_right
+        else:
+            if False:
+                self.fit_right = fit_right
+                self.num_right = num_right
+            elif fit_right is not None:              
+                self.fit_arr_right.append(fit_right)
+                self.fit_arr_right = self.fit_arr_right[-n_fit:]
+                self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
+                self.num_right = num_right
+
+        # print(fit_left, fit_right)
+        # print(self.fit_left, self.fit_right)
+
+
+        img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
+        if False:
+            # Overlay img_combined
+            z = np.zeros_like(img_combined)
+            tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
+            # print(img_out.dtype, tmp.dtype)
+            img_out = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
+            # self.view(img_out)        
+        if True:
+            # Overlay img_combined
+            img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
+            # self.view(img_out)        
+        self.frames += 1
+        return img_out
 
     def load_image(self, path):
         return self.loader.load_bgr(path)
@@ -221,141 +358,6 @@ class Pipeline:
     def process_video(self, img):
         return cv2.cvtColor(self.process(cv2.cvtColor(img, cv2.COLOR_RGB2BGR)), cv2.COLOR_BGR2RGB)
 
-    def process(self, img):
-        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        # Image is BGR Colorspace
-        img_h, img_w = img.shape[:2]        
-
-        self.base_lines = None          
-
-        if self.img_shape is None:
-            self.img_shape = (img_w, img_h)
-
-        if self.M is None:
-            self.M, self.Minv = self.perspective_transform(
-                vp = (640, 420),
-                tl = (500, 480),
-                bl = (0, 700),
-                out = self.img_shape,
-            )
-
-        # self.view(self.warp(img))
-
-
-        img_conv = conv.process_image(img)
-        img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
-        img_combined[img_combined > 0.1] = 1.0
-     
-        if False:
-            # img_out = np.dstack((img_conv, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
-            img_out = cv2.addWeighted(img, 0.5, img_conv.astype(np.uint8), 0.5, 0)
-            self.view(img_out)        
-
-
-        img_warped = self.warp(img_combined)
-        # self.view(img_warped)
-
-        min_points = 500
-
-        fit_left, fit_right = self.fit_left, self.fit_right       
-        num_left, num_right = 0, 0 
-        # fit_left, num_left = None, 0
-        # fit_right, num_right = None, 0
-
-        # Reset every N rames
-
-        if True or self.frames % 10 == 0:
-            # Reset priors so find_line_with_priors is not used
-            fit_left, fit_right = None, None
-
-
-        if fit_left is not None:                
-            fit_left, num_left = self.find_line_with_priors(img_warped, fit_left, margin=10)
-            # print('left', fit_left, num_left)
-            if num_left < min_points:
-                print("Lost left lane")
-                left_fit, num_left = None, 0
-            # else:
-            #     self.fit_left = fit_left
-            #     self.num_left = num_left
-
-        if fit_right is not None:                
-            fit_right, num_right = self.find_line_with_priors(img_warped, fit_right, margin=10)
-            # print("right", fit_right, num_right)
-            if num_right < min_points:
-                print("Lost right lane")
-                right_fit, num_right = None, 0
-            # else:
-            #     self.fit_right = fit_right
-            #     self.num_right = num_right
-
-        if fit_left is not None and fit_right is not None:
-            if fit_left[0] == fit_right[0]:
-                print("Both lanes the same")
-                fit_left, num_left = None, 0
-                fit_right, num_right = None, 0
-
-
-        if fit_left is None or fit_right is None:
-            left_x, right_x = self.find_base_lines(img_warped)
-            # print(left_x, right_x)
-            if fit_left is None:
-                fit_left, num_left = self.find_line(img_warped, left_x)
-
-            if fit_right is None:
-                fit_right, num_right = self.find_line(img_warped, right_x)        
-
-        n_fit = 8
-
-        if num_left < min_points:
-            print("Lost left, using last fit")
-            # print(fit_left, num_left)
-            fit_left = self.fit_left
-            num_right = self.num_right
-        else:
-            if False:
-                self.fit_left = fit_left
-                self.num_left = num_left
-            elif fit_left is not None:
-                self.fit_arr_left.append(fit_left)
-                self.fit_arr_left = self.fit_arr_left[-n_fit:]
-                self.fit_left = np.concatenate([self.fit_arr_left]).mean(axis=0)
-                self.num_left = num_left
-
-        if num_right < min_points:
-            print("Lost right, using last fit")
-            # print(fit_right, num_right)
-            fit_right = self.fit_right
-            num_right = self.num_right
-        else:
-            if False:
-                self.fit_right = fit_right
-                self.num_right = num_right
-            elif fit_right is not None:              
-                self.fit_arr_right.append(fit_right)
-                self.fit_arr_right = self.fit_arr_right[-n_fit:]
-                self.fit_right = np.concatenate([self.fit_arr_right]).mean(axis=0)
-                self.num_right = num_right
-
-        # print(fit_left, fit_right)
-        # print(self.fit_left, self.fit_right)
-
-
-        img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-        if False:
-            # Overlay img_combined
-            z = np.zeros_like(img_combined)
-            tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
-            # print(img_out.dtype, tmp.dtype)
-            img_out = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
-            # self.view(img_out)        
-        if True:
-            # Overlay img_combined
-            img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
-            # self.view(img_out)        
-        self.frames += 1
-        return img_out
-
     def run(self, path):
         return self.process(self.load_image(path))
 
@@ -366,9 +368,9 @@ class Pipeline:
     def process_movie(self, path, out_path):
         #out_path = os.path.join('out_videos', path);
         print(path, out_path)
-        if out_path.index('-1'):
+        if out_path.find('-1') > 0:
             clip = VideoFileClip(path).subclip(0, 1)
-        elif out_path.index('-5'):
+        elif out_path.find('-5') > 0:
             clip = VideoFileClip(path).subclip(0, 5)
         else:
             clip = VideoFileClip(path)
