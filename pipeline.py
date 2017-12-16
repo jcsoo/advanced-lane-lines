@@ -15,6 +15,8 @@ PIPELINE_CFG = {
 
 WHITE = (255, 255, 255)
 
+VCROP = (420, -80)
+
 class Pipeline:
     def __init__(self, cfg):
         self.cfg = cfg
@@ -29,6 +31,7 @@ class Pipeline:
         self.num_left = 0
         self.num_right = 0
         self.frames = 0
+        self.stage = 'CONV'
 
     def process(self, img):
         # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
@@ -50,11 +53,13 @@ class Pipeline:
 
         # self.view(self.warp(img))
 
-        img = img[460:-80,]
-        return img
-
-
+        img = img[VCROP[0]:VCROP[1],:]
+        # print(img.shape)
         img_conv = conv.process_image(img)
+
+        if self.stage == 'CONV':
+            return cv2.addWeighted(img, 0.25, (img_conv * 255.0).astype(np.uint8), 1, 0)
+
         img_combined = np.dot(img_conv, np.array([0.0, 1.0, 1.0]).transpose() / 2.0)
         img_combined[img_combined > 0.1] = 1.0
      

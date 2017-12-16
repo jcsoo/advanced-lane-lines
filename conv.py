@@ -43,24 +43,55 @@ def filter_thresh(img, thresh):
     img[img > -1.0] = 1.0
     return img
 
-def filter_stripes(img, bias=0.05, mul=5.0, wmul=1):
+def filter_stripes(img, bias, mul, wmul=1):
     img = np.concatenate([
-        np.zeros((420, img.shape[1])),
-        filter_vline(img[420:500,:], (2, 4 * wmul)),
-        filter_vline(img[500:570,:], (2, 6 * wmul)),
-        filter_vline(img[570:640,:], (4, 8 * wmul)),
-        filter_vline(img[640:720,:], (8, 10 * wmul)),
+        filter_vline(img[0:80,:], (2, 4 * wmul)),
+        filter_vline(img[80:150,:], (2, 6 * wmul)),
+        filter_vline(img[150:220,:], (2, 6 * wmul)),
+        # filter_vline(img[220:,:], (8, 10 * wmul)),
     ])
-
-    img -= bias
-    img *= mul
-
+    img += bias
     img[img < 0] = 0.0
-    img[img > 1.0] = 1.0
+    # img[img > 1.0] = 1.0
     # img[img > 0] = 1.0
     # img = img ** 2
     # img[:,:,0] = -1.0
+
+    if mul is None:
+        img /= img.max()
+    else:
+        img *= mul
+
     return img
+
+
+def filter_vline(img, size):
+    kernel = (np.concatenate([
+        np.zeros(size, np.float32),
+        np.ones(size, np.float32),
+        np.ones(size, np.float32),
+        np.zeros(size, np.float32),
+    ], axis=1) - 0.5) / (size[0] * size[1] * 4)
+
+    kernel = cv2.GaussianBlur(kernel, (5, 5), 0, 0)    
+    k2 = np.array([[-0.5, -0.5, 0.5, 0.5]])
+    kernel = cv2.filter2D(kernel, -1, k2)
+    return cv2.filter2D(img, -1, kernel, borderType=cv2.BORDER_REFLECT)
+
+def filter_vxline(img, size):
+    kernel = (np.concatenate([
+        np.zeros(size, np.float32),
+        np.ones(size, np.float32),
+        np.ones(size, np.float32),
+        np.zeros(size, np.float32),
+    ], axis=1) - 0.5) / (size[0] * size[1] * 4)
+    # kernel = [-0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, -0.5]
+    # kernel = cv2.GaussianBlur(kernel, (3, 3), 0, 0)    
+    # kernel2 = cv2.filter2D(np.array([kernel1]), -1, np.array([-1.0, 1.0]))
+    # print(kernel1)
+    # print(kernel2)
+    
+
 
 def midpoint_adjust(img):
     # Sample patch
@@ -80,18 +111,41 @@ def score(*args):
     return 0
 
 def process_image(img):
-    img = equalize_hist(img)
-    img = np.log(hsv_f32(img) / 2.0 + 1.0)
+    img = hsv_f32(equalize_hist(img))
 
     # img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
-    img[:,:,0] = 0
-    img[:,:,1] = filter_stripes(img[:,:,1], 0.01, 10.0, wmul=2)
-    img[:,:,2] = filter_stripes(img[:,:,2], 0.01, 50.0)
-    # img[:,:,2] = filter_thresh(img[:,:,2], [0.4, 1.0])
 
+    h = filter_thresh(img[:,:,0], (0.080, 0.095))
+    s = filter_stripes(img[:,:,1], -0.005, 10)
+    v_s = filter_stripes(img[:,:,2], -0.005, 20)
+    v_t = filter_thresh(img[:,:,2], (0.625, 1.0))
+
+    h[h > 0] = 1.0
+    s[s > 0] = 1.0
+    v_s[v_s > 0] = 1.0
+    v_t[v_t > 0] = 1.0
+
+    kernel = np.ones((3, 3),np.uint8)
+
+    # a = h * s 
+    a_o =  cv2.dilate(h, kernel, iterations=1) * s
+
+    b = s * v_s
+    c = v_s * v_t
+    # out[h > 0 and s > 0 and v_s > 0 and v_t > 0] = 1.0
+
+    # show('out', v_s)
+
+
+    # img[:,:,1] = filter_thresh(img[:,:,1], (0.35, 0.55))
+    # img[:,:,2] = filter_thresh(img[:,:,2], (0.8, 1.0))
+
+    # img[:,:,0] = 0
     # img[:,:,1] = 0
+    # img[:,:,2] = 0
 
-    return img
+    # show('h', img[:,:,0])    
+    return np.dstack([a_o, b, c])
 
 def merge(im1, a1, im2, v2):
     if len(im2.shape) < 3:
@@ -122,16 +176,6 @@ def hls(img):
 def hls_f32(img):
     return (hls(img).astype(np.float32) / 255.0)
 
-
-def filter_vline(img, size):
-    kernel = (np.concatenate([
-        np.zeros(size, np.float32),
-        np.ones(size, np.float32),
-        np.ones(size, np.float32),
-        np.zeros(size, np.float32),
-    ], axis=1) - 0.5) / (size[0] * size[1] * 4)
-    return cv2.filter2D(img, -1, kernel, borderType=cv2.BORDER_REFLECT)
-    
 
 def filter_avg(img, size=(5, 5)):
     kernel = np.ones(size, np.float32) / (size[0] * size[1])
