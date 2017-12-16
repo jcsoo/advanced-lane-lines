@@ -43,11 +43,11 @@ def filter_thresh(img, thresh):
     img[img > -1.0] = 1.0
     return img
 
-def filter_stripes(img, bias, mul, wmul=1):
+def filter_stripes(img, bias, mul, wmul=1, deriv=True):
     img = np.concatenate([
-        filter_vline(img[0:80,:], (2, 4 * wmul)),
-        filter_vline(img[80:150,:], (2, 6 * wmul)),
-        filter_vline(img[150:220,:], (2, 6 * wmul)),
+        filter_vline(img[0:80,:], (2, 4 * wmul), deriv),
+        filter_vline(img[80:150,:], (2, 6 * wmul), deriv),
+        filter_vline(img[150:220,:], (2, 6 * wmul), deriv),
         # filter_vline(img[220:,:], (8, 10 * wmul)),
     ])
     img += bias
@@ -65,17 +65,17 @@ def filter_stripes(img, bias, mul, wmul=1):
     return img
 
 
-def filter_vline(img, size):
+def filter_vline(img, size, deriv=True):
     kernel = (np.concatenate([
         np.zeros(size, np.float32),
         np.ones(size, np.float32),
         np.ones(size, np.float32),
         np.zeros(size, np.float32),
     ], axis=1) - 0.5) / (size[0] * size[1] * 4)
-
-    kernel = cv2.GaussianBlur(kernel, (5, 5), 0, 0)    
-    k2 = np.array([[-0.5, -0.5, 0.5, 0.5]])
-    kernel = cv2.filter2D(kernel, -1, k2)
+    if deriv:
+        kernel = cv2.GaussianBlur(kernel, (5, 5), 0, 0)    
+        k2 = np.array([[-0.5, -0.5, 0.5, 0.5]])
+        kernel = cv2.filter2D(kernel, -1, k2)
     return cv2.filter2D(img, -1, kernel, borderType=cv2.BORDER_REFLECT)
 
 def filter_vxline(img, size):
@@ -115,8 +115,9 @@ def process_image(img):
 
     # img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
 
-    h = filter_thresh(img[:,:,0], (0.080, 0.095))
-    s = filter_stripes(img[:,:,1], -0.005, 10)
+    h = filter_thresh(img[:,:,0], (0.075, 0.100))
+    # s = filter_stripes(img[:,:,1], -0.005, 10)
+    s = filter_stripes(img[:,:,1], -0.015, 10, deriv=False)
     v_s = filter_stripes(img[:,:,2], -0.005, 20)
     # Vary threshold based on local image
     v_t = filter_thresh(img[:,:,2], (0.65, 1.0))

@@ -90,9 +90,9 @@ class Pipeline:
         if self.stage == 'WARPED':
             # self.view(img_warped)
             # return img_warped
-            return (img_warped * 255).astype(np.uint8)
+            return (np.dstack((img_warped, img_warped, img_warped)) * 255).astype(np.uint8)
 
-        min_points = 500
+        min_bins = 3
 
         fit_left, fit_right = self.fit_left, self.fit_right       
         num_left, num_right = 0, 0 
@@ -128,9 +128,7 @@ class Pipeline:
         if fit_left is not None and fit_right is not None:
             if fit_left[0] == fit_right[0]:
                 print("Both lanes the same")
-                fit_left, num_left = None, 0
-                fit_right, num_right = None, 0
-
+                reset = True
 
         if reset:
             if self.base_lines is None:
@@ -147,7 +145,7 @@ class Pipeline:
 
         n_avg = self.n_avg
 
-        if fit_left is None or num_left < min_points:
+        if fit_left is None or num_left < min_bins:
             print("Lost left, using last fit", num_left)
             # print(fit_left, num_left)
             fit_left = self.fit_left
@@ -160,7 +158,7 @@ class Pipeline:
                 print("fit_arr_left is None")
             self.num_left = num_left
 
-        if fit_right is None or num_right < min_points:
+        if fit_right is None or num_right < min_bins:
             print("Lost right, using last fit", num_right)
             # print(fit_right, num_right)
             fit_right = self.fit_right
@@ -288,12 +286,23 @@ class Pipeline:
 
         num = np.count_nonzero(x)
 
+        h = np.histogram(y, bins=8, range=(0, img.shape[0]))
+        bins = np.count_nonzero(h[0])
+
+        # windows = 8
+        # window_height = img.shape[0] // windows
+        # counts = []
+        # for i in range(windows):
+        #     wy0 = i * window_height
+        #     wy1 = wy0 + window_height
+        #     counts.append(len(np.where(np.logical_and(y >= wy0, y < wy1))))
+        # print(counts)
         if num > 0:
             fit = np.polyfit(y, x, 2)
         else:
             fit = None
 
-        return fit, num
+        return fit, bins
 
     def find_lines_with_priors(self, img, left_fit, right_fit, margin=50, min_points=200, plot=False):
         binary_warped = img
