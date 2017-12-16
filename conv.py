@@ -45,7 +45,7 @@ def filter_thresh(img, thresh):
 
 def filter_stripes(img, bias, mul, wmul=1, deriv=True):
     img = np.concatenate([
-        filter_vline(img[0:80,:], (2, 4 * wmul), deriv),
+        filter_vline(img[0:80,:], (2, 6 * wmul), deriv),
         filter_vline(img[80:150,:], (2, 6 * wmul), deriv),
         filter_vline(img[150:220,:], (2, 6 * wmul), deriv),
         # filter_vline(img[220:,:], (8, 10 * wmul)),
@@ -120,7 +120,7 @@ def process_image(img):
     s = filter_stripes(img[:,:,1], -0.015, 10, deriv=False)
     v_s = filter_stripes(img[:,:,2], -0.005, 20)
     # Vary threshold based on local image
-    v_t = filter_thresh(img[:,:,2], (0.65, 1.0))
+    v_t = filter_thresh(img[:,:,2], (0.60, 1.0))
 
     h[h > 0] = 1.0
     s[s > 0] = 1.0
