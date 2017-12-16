@@ -92,7 +92,7 @@ class Pipeline:
             # return img_warped
             return (img_warped * 255).astype(np.uint8)
 
-        min_points = 50
+        min_points = 500
 
         fit_left, fit_right = self.fit_left, self.fit_right       
         num_left, num_right = 0, 0 

@@ -130,7 +130,7 @@ def process_image(img):
 
     # a = h * s 
     # a_o = h * s
-    a_o =  cv2.dilate(h, kernel, iterations=1) * s
+    a_o =  cv2.dilate(h, kernel, iterations=2) * s
     a_o[a_o > 0] = 1.0
     b = s * v_s
     c = v_s * v_t
