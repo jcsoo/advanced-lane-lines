@@ -73,7 +73,11 @@ class Pipeline:
         self.ypx_per_m = 120 / 3.0
 
         self.xm_per_pix = 3.7 / 640
-        self.ym_per_pix = 3.0 / 120
+        # self.ym_per_pix = 3.0 / 120.0
+
+        # Add fudge factor to bring curvature closer to nominal
+        # Perspective transform may need to be adjusted
+        self.ym_per_pix = 1.5 * 3.0 / 120.0
 
         # print(self.img_shape)
 
@@ -192,18 +196,19 @@ class Pipeline:
         # print(self.fit_left, self.fit_right)
 
 
-        img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-        if True:
+        if False:
             # Overlay img_combined
             z = np.zeros_like(img_combined)
             tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             # print(img_out.dtype, tmp.dtype)
-            img_out = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
+            img = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
             # self.view(img_out)        
         if False:
             # Overlay img_combined
             img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
             # self.view(img_out)    
+
+        img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
 
         # Curve Radius
 
@@ -211,34 +216,52 @@ class Pipeline:
         yeval_px = img_warped.shape[0]
         yeval_m = yeval_px * self.ym_per_pix
 
+        left_radius_px, left_px = 0, 0
+        right_radius_px, right_px = 0, 0
+        left_radius_m, left_m = 0, 0
+        right_radius_m, right_m = 0, 0
+
         # print(fit_left, fit_right)
 
         if fit_left is not None and fit_left[0] is not None:
             left_radius_px = self.curve_radius(fit_left[0], yeval_px)
-        else:
-            left_radius_px = 0
+            left_px = self.x_at(fit_left[0], yeval_px)
 
         if fit_right is not None and fit_right[0] is not None:
             right_radius_px = self.curve_radius(fit_right[0], yeval_px)
-        else:
-            right_radius_px = 0
+            right_px = self.x_at(fit_right[0], yeval_px)
 
 
         if fit_left is not None and fit_left[1] is not None:
             left_radius_m = self.curve_radius(fit_left[1], yeval_m)
-        else:
-            left_radius_m = 0
+            left_m = self.x_at(fit_left[1], yeval_m)
     
         if fit_right is not None and fit_right[1] is not None:
             right_radius_m = self.curve_radius(fit_right[1], yeval_m)
-        else:
-            right_radius_m = 0
+            right_m = self.x_at(fit_right[1], yeval_m)
 
         # Draw Info
 
         line = ''
         line += 'Bins: %d %d ' % (num_left, num_right)
-        line += 'Radius: %dpx %dpx / %dm %dm' % (left_radius_px, right_radius_px, left_radius_m, right_radius_m)
+        line += '| Radius: %dpx %dpx / %dm %dm ' % (left_radius_px, right_radius_px, left_radius_m, right_radius_m)
+        # line += 'Pos: %dpx %dpx / %2.2fm %2.2fm ' % (left_px, right_px, left_m, right_m)
+        if left_px and right_px and left_m and right_m:
+            width_px = right_px - left_px
+            width_m = right_m - left_m
+            line += '| Width: %dpx / %2.2fm ' % (width_px, width_m)
+
+            avg_px = (left_px + right_px) / 2
+            avg_m = (left_m + right_m) / 2
+
+            mid_px = img_warped.shape[1] // 2
+            mid_m = mid_px * self.xm_per_pix
+
+            pos_px = mid_px - avg_px
+            pos_m = mid_m - avg_m
+
+            line += '| Pos: %dpx / %2.2fm ' % (pos_px, pos_m)
+
         line += ''
         print(line)
         self.draw_text(img_out, line, (10, 20), 0.5, WHITE)
@@ -423,9 +446,14 @@ class Pipeline:
         # Draw the lane onto the warped blank image
         cv2.fillPoly(color_warp, np.int_([pts]), (0,255, 0))
 
+        # return color_warp.astype(np.uint8)
+
         newwarp = self.unwarp(color_warp)
 
         return cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
+
+    def x_at(self, fit, y_eval):
+        return fit[0] * y_eval ** 2 + fit[1] * y_eval + fit[2]
 
     def curve_radius(self, fit, y_eval):
         curverad = ((1 + (2 * fit[0] * y_eval + fit[1]) ** 2) ** 1.5) / np.absolute(2 * fit[0])
