@@ -576,11 +576,21 @@ See Pipeline Phase 9
 
 ### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-#### Phases 3, 4 and 5 (Pixel Classification)
+With more time, I would have liked to implement completely different line fitting algorithms, probably
+based on RANSAC or a similar approach.
 
-#### Phase 7 (Line Fitting)
+In general, I felt held back by implementing in Python and Numpy - there were a number of things I wanted to
+try that would have been very inefficient using an iterative approach, but weren't practical using the
+amount of NumPy that I know.
 
-#### Phase 8 (Curve Radius and Lane Position)
+As mentioned in Approach and Philosophy, I think there are a lot of ways I could have smoothed the output
+in a smart way, but they seemed less interesting than figuring out the lower layers.
 
+My ultimate goal was to build a pixel classification layer that I could actually use backpropagation and SGD
+to train. You can see this in the architecture, but unfortunately I didn't have the time to really get beyond the start of that idea. I may try this on my own in the future.
 
+This particular pipeline's biggest weakness is that there are several key parameters (mainly threshold values) that are dependent on the specific lighting conditions - as seen on the Harder Challenge Video.
 
+ It's likely
+that this could be addressed by making these thesholds more dynamic - based on the overall lighting conditions,
+the lighting of the road surface in front of the car, and even the road surface right near the area being classified.
