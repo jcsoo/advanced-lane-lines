@@ -46,9 +46,50 @@ The goals / steps of this project are the following:
 
 # Project Description
 
-## Approach
+## Approach and Philosophy
+
+This implementation followed the basic approach from the class notes, with an initial
+pixel classification phase followed by windowed polynomial curve fitting.
+
+For this particular project, I started initially with a Sobel filter based approach for
+pixel classification but decided to focus on a technique using a combination of threshold
+filtering and varying-width vertical line filters. I chose this approach because it is
+amenable to implementation in real time on smaller embedded camera systems, perhaps even 
+incrementally at the line or block level.
+
+I kept the basic lane fitting approach with a few modifications to improve intial fitting and
+to provide more feedback on the quality of the fit. There are a number of improvements that
+I can foresee (using splines instead of polynomials, using iterative pixel neighbor
+techniques, and using RANSAC or other progressive fitting techniques) but it seemed to me
+that implementing them in NumPy / OpenCV would be challenging and beyond the scope of this project.
+
+I have implemented some simple techniques for simple temporal averaging and quality filtering,
+but I have chosen to keep the amount of averaging minimal. Turning off filtering exposes
+the quality of the underlying feature extraction and the quality of the underlying data. For
+this project it's more interesting to see how well the code performs, and in a real system
+it would be better to provide the raw data to upper layers which can then decide on a
+filtering policy with more information than this subsystem would have available.
 
 ## Camera Calibration
+
+Camera calibration is handled in the `calibrate.py` module. Initial calibration uses `calibrate()`, which
+reads all images from the calibration file directory and uses `cv2.findChessboardCorners()` and 
+`cv2.cornerSubPix()` to detect all of the corners and construct the object point and image point arrays.
+Then, `cv2.calibrateCamera()` is used to generate a correction matrix, which is stored in the file
+`calibrate.p`.
+
+The module also includes an image loader class that reads the correction data and implements methods to 
+correct the incoming images.
+
+Original Calibration Image
+----
+
+![alt text][cal_2_before]
+
+Corrected Calibration Image
+----
+
+![alt text][cal_2_after]
 
 ## Pipeline
 
@@ -104,24 +145,6 @@ Provided.
 
 #### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
-Camera calibration is handled in the `calibrate.py` module. Initial calibration uses `calibrate()`, which
-reads all images from the calibration file directory and uses `cv2.findChessboardCorners()` and 
-`cv2.cornerSubPix()` to detect all of the corners and construct the object point and image point arrays.
-Then, `cv2.calibrateCamera()` is used to generate a correction matrix, which is stored in the file
-`calibrate.p`.
-
-The module also includes an image loader class that reads the correction data and implements methods to 
-correct the incoming images.
-
-Original Calibration Image
-----
-
-![alt text][cal_2_before]
-
-Corrected Calibration Image
-----
-
-![alt text][cal_2_after]
 
 ### Pipeline (single images)
 
