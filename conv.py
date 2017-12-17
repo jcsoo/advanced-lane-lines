@@ -47,7 +47,6 @@ def filter_stripes(img, bias, mul, wmul=1, deriv=True):
         filter_vline(img[0:80,:], (2, 6 * wmul), deriv),
         filter_vline(img[80:150,:], (2, 6 * wmul), deriv),
         filter_vline(img[150:220,:], (2, 6 * wmul), deriv),
-        # filter_vline(img[220:,:], (8, 10 * wmul)),
     ])
     img += bias
     img[img < 0] = 0.0
