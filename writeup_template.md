@@ -21,7 +21,8 @@ The goals / steps of this project are the following:
 [pipeline_1a]: ./examples/pipeline_1a.jpg "Distortion Corrected Image"
 [pipeline_1b]: ./examples/pipeline_1b.jpg "Cropped Image"
 
-[pipeline_2]: ./examples/pipeline_2.jpg "Colorspace Conversion"
+[pipeline_2a]: ./examples/pipeline_2a.jpg "Histogram Equalization"
+[pipeline_2b]: ./examples/pipeline_2b.jpg "Colorspace Conversion"
 
 [pipeline_3a]: ./examples/pipeline_3a.jpg "H: Hue Similarity Threshold"
 [pipeline_3b]: ./examples/pipeline_3b.jpg "S: Saturation Vertical Line Convolution"
@@ -96,21 +97,28 @@ Corrected Calibration Image
 
 ### 0: Original Image
 
-![][pipeline_0]
+![original][pipeline_0]
 
 ### 1: Distortion Correction and Cropping
 
-![][pipeline_1]
+![][pipeline_1a]
 
-### 2: Colorspace Conversion to HSV
+![][pipeline_1b]
 
-![][pipeline_2]
+### 2: Histogram Equalization and Colorspace Conversion to HSV
+
+![][pipeline_2a]
+
+![][pipeline_2b]
 
 ### 3: Basic Feature Extraction
 
 ![][pipeline_3a]
+
 ![][pipeline_3b]
+
 ![][pipeline_3c]
+
 ![][pipeline_3d]
 
 ### 4: Feature Combination

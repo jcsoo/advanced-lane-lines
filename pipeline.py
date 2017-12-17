@@ -37,13 +37,10 @@ class Pipeline:
         self.stage = None
 
     def process(self, img):
-        # img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
         # Image is BGR Colorspace
         img = img[VCROP[0]:VCROP[1],:]
-
+        
         img_h, img_w = img.shape[:2]        
-
-
         if self.img_shape is None:
             self.img_shape = (img_w, img_h)
 
@@ -96,6 +93,8 @@ class Pipeline:
         img_combined[img_combined < 0.0] = 0
         img_combined[img_combined > 0.0] = 1.0       
         img_combined = img_combined.astype(np.uint8)
+
+
         if self.stage == 'COMB':
             img_out = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             return cv2.addWeighted(img, 0.5, img_out.astype(np.uint8), 1, 0)            
@@ -108,6 +107,7 @@ class Pipeline:
 
 
         img_warped = self.warp(img_combined)
+
         if self.stage == 'WARPED':
             # self.view(img_warped)
             # return img_warped
@@ -209,6 +209,8 @@ class Pipeline:
             # self.view(img_out)    
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
+
+        # return img_out
 
         # Curve Radius
 
@@ -517,7 +519,11 @@ def main(args):
 
     arg = args[0]
     if os.path.splitext(arg)[1] == '.jpg':
-        pipeline.view(pipeline.run(arg))
+        if len(args) == 1:
+            pipeline.view(pipeline.run(arg))
+        else:
+            img = pipeline.run(arg)
+            cv2.imwrite(args[1], img)
     elif os.path.splitext(arg)[1] == '.mp4':
         pipeline.process_movie(arg, args[1])
 

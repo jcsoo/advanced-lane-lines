@@ -78,21 +78,6 @@ def filter_vline(img, size, deriv=True):
         kernel = cv2.filter2D(kernel, -1, k2)
     return cv2.filter2D(img, -1, kernel, borderType=cv2.BORDER_REFLECT)
 
-def filter_vxline(img, size):
-    kernel = (np.concatenate([
-        np.zeros(size, np.float32),
-        np.ones(size, np.float32),
-        np.ones(size, np.float32),
-        np.zeros(size, np.float32),
-    ], axis=1) - 0.5) / (size[0] * size[1] * 4)
-    # kernel = [-0.5, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, -0.5]
-    # kernel = cv2.GaussianBlur(kernel, (3, 3), 0, 0)    
-    # kernel2 = cv2.filter2D(np.array([kernel1]), -1, np.array([-1.0, 1.0]))
-    # print(kernel1)
-    # print(kernel2)
-    
-
-
 def midpoint_adjust(img):
     # Sample patch
 
@@ -112,6 +97,7 @@ def score(*args):
 
 def process_image(img):
     img = hsv_f32(equalize_hist(img))
+
 
     # img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
 
@@ -135,19 +121,7 @@ def process_image(img):
     a[a > 0] = 1.0
     b = s * v_s
     c = v_s * v_t
-    # out[h > 0 and s > 0 and v_s > 0 and v_t > 0] = 1.0
 
-    # show('out', v_s)
-
-
-    # img[:,:,1] = filter_thresh(img[:,:,1], (0.35, 0.55))
-    # img[:,:,2] = filter_thresh(img[:,:,2], (0.8, 1.0))
-
-    # img[:,:,0] = 0
-    # img[:,:,1] = 0
-    # img[:,:,2] = 0
-
-    # show('h', img[:,:,0])    
     return np.dstack([a, b, c])
 
 def merge(im1, a1, im2, v2):
