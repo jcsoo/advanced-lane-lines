@@ -60,20 +60,20 @@ class Pipeline:
 
         # From warped image measurements
         #
-        #   Lane Width = ~1280px
-        #   Dash Length = ~230px
+        #   Lane Width = ~640px
+        #   Dash Height = ~120px
         #
         #   Actual Width = 3.7m
-        #   Actual Length = 3m
+        #   Actual Height = 3m
         #
-        #   Xpx / Xm = 1280 / 3.7
-        #   Ypx / Ym = 230 / 3
+        #   Xpx / Xm = 640 / 3.7
+        #   Ypx / Ym = 120 / 3
 
-        self.xpx_per_m = 1280 / 3.7
-        self.ypx_per_m = 230 / 3.0
+        self.xpx_per_m = 640 / 3.7
+        self.ypx_per_m = 120 / 3.0
 
-        self.xm_per_pix = 3.7 / 1280
-        self.ym_per_pix = 3.0 / 230
+        self.xm_per_pix = 3.7 / 640
+        self.ym_per_pix = 3.0 / 120
 
         # print(self.img_shape)
 
@@ -207,8 +207,9 @@ class Pipeline:
 
         # Curve Radius
 
-        # Evaluate radius at screen bottom
-        yeval_px = img.shape[0]
+        # Evaluate radius at warped image bottom
+        yeval_px = img_warped.shape[0]
+        yeval_m = yeval_px * self.ym_per_pix
 
         # print(fit_left, fit_right)
 
@@ -222,7 +223,6 @@ class Pipeline:
         else:
             right_radius_px = 0
 
-        yeval_m = img.shape[0] * self.ym_per_pix
 
         if fit_left is not None and fit_left[1] is not None:
             left_radius_m = self.curve_radius(fit_left[1], yeval_m)
@@ -240,7 +240,7 @@ class Pipeline:
         line += 'Bins: %d %d ' % (num_left, num_right)
         line += 'Radius: %dpx %dpx / %dm %dm' % (left_radius_px, right_radius_px, left_radius_m, right_radius_m)
         line += ''
-
+        print(line)
         self.draw_text(img_out, line, (10, 20), 0.5, WHITE)
 
 
