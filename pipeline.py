@@ -489,7 +489,9 @@ class Pipeline:
         return M, Minv
 
     def process_video(self, img):
-        return cv2.cvtColor(self.process(cv2.cvtColor(img, cv2.COLOR_RGB2BGR)), cv2.COLOR_BGR2RGB)
+        img_in = self.loader.undistort(cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
+        img_out = self.process(img_in)
+        return cv2.cvtColor(img_out, cv2.COLOR_BGR2RGB)
 
     def run(self, path):
         return self.process(self.load_image(path))

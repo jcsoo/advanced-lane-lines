@@ -27,6 +27,9 @@ class ImageLoader:
     def load_gray(self, path):
         return cv2.cvtColor(self.load_bgr(path), cv2.COLOR_BGR2GRAY)
 
+    def undistort(self, img):
+        return undistort(img, self.mat, self.dist)
+
 def calibration_images():
     base = './camera_cal'
     for name in os.listdir(base):
