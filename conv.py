@@ -131,8 +131,8 @@ def process_image(img):
 
     # a = h * s 
     # a_o = h * s
-    a_o =  cv2.dilate(h, kernel, iterations=2) * s
-    a_o[a_o > 0] = 1.0
+    a =  cv2.dilate(h, kernel, iterations=2) * s
+    a[a > 0] = 1.0
     b = s * v_s
     c = v_s * v_t
     # out[h > 0 and s > 0 and v_s > 0 and v_t > 0] = 1.0
@@ -148,7 +148,7 @@ def process_image(img):
     # img[:,:,2] = 0
 
     # show('h', img[:,:,0])    
-    return np.dstack([a_o, b, c])
+    return np.dstack([a, b, c])
 
 def merge(im1, a1, im2, v2):
     if len(im2.shape) < 3:

@@ -78,7 +78,13 @@ def view_calibration(mtx, dist):
     for (name, img) in calibration_images():
         dst = undistort(img, mtx, dist)
         cv2.imshow('img', dst)
-        cv2.waitKey(5000)            
+        cv2.waitKey(5000)      
+
+def write_calibration_images(mtx, dist):
+    for (name, img) in calibration_images():
+        img = undistort(img, mtx, dist)
+        path = os.path.join('camera_out', name)
+        cv2.imwrite(path, img)
 
 def save_calibration(path, mtx, dist):    
     with open(path, 'wb') as f:
@@ -96,6 +102,9 @@ def main(args):
     elif args[0] == 'view':
         mtx, dist = load_calibration(path)
         view_calibration(mtx, dist)
+    elif args[0] == 'write':
+        mtx, dist = load_calibration(path)
+        write_calibration_images(mtx, dist)
 
 if __name__ == '__main__':
     main(sys.argv[1:])
