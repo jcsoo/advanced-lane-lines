@@ -72,6 +72,12 @@ this project it's more interesting to see how well the code performs, and in a r
 it would be better to provide the raw data to upper layers which can then decide on a
 filtering policy with more information than this subsystem would have available.
 
+## Source Code
+
+- [pipeline.py](../pipeline.py) - Main Pipeline
+- [conv.py](../conv.py) - Pixel Classification
+- [calibrate.py](../calibrate.py) - Camera Calibration and Image Loader
+
 ## Camera Calibration
 
 Camera calibration is handled in the `calibrate.py` module. Initial calibration uses `calibrate()`, which
