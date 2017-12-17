@@ -31,7 +31,7 @@ class Pipeline:
         self.num_left = 0
         self.num_right = 0
         self.frames = 0
-        self.reset_frames = 1000
+        self.reset_frames = 100
         self.n_avg = 1
         self.base_lines = None          
         self.stage = None
@@ -83,6 +83,8 @@ class Pipeline:
 
         # print(img.shape)
         img_conv = conv.process_image(img)
+
+        # return img_conv
 
         if self.stage == 'CONV':
             return cv2.addWeighted(img, 0.25, (img_conv * 255.0).astype(np.uint8), 1, 0)
@@ -196,12 +198,12 @@ class Pipeline:
         # print(self.fit_left, self.fit_right)
 
 
-        if False:
+        if True:
             # Overlay img_combined
             z = np.zeros_like(img_combined)
             tmp = np.dstack((img_combined, img_combined, img_combined)) * 255 # making the original road pixels 3 color channels
             # print(img_out.dtype, tmp.dtype)
-            img = cv2.addWeighted(img_out, 0.5, tmp.astype(np.uint8), 1.0, 0)
+            img = cv2.addWeighted(img, 0.5, tmp.astype(np.uint8), 1.0, 0)
             # self.view(img_out)        
         if False:
             # Overlay img_combined
@@ -209,8 +211,6 @@ class Pipeline:
             # self.view(img_out)    
 
         img_out = self.draw_unwarped(img, img_warped, self.fit_left, self.fit_right)
-
-        # return img_out
 
         # Curve Radius
 

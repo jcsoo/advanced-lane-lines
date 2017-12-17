@@ -21,8 +21,8 @@ The goals / steps of this project are the following:
 [pipeline_1a]: ./examples/pipeline_1a.jpg "Distortion Corrected Image"
 [pipeline_1b]: ./examples/pipeline_1b.jpg "Cropped Image"
 
-[pipeline_2a]: ./examples/pipeline_2a.jpg "Histogram Equalization"
-[pipeline_2b]: ./examples/pipeline_2b.jpg "Colorspace Conversion"
+[pipeline_2a]: ./examples/pipeline_2a.jpg "Global Histogram Equalization"
+[pipeline_2b]: ./examples/pipeline_2b.jpg "Slice Histogram Equalization"
 
 [pipeline_3a]: ./examples/pipeline_3a.jpg "H: Hue Similarity Threshold"
 [pipeline_3b]: ./examples/pipeline_3b.jpg "S: Saturation Vertical Line Convolution"
@@ -103,13 +103,48 @@ Corrected Calibration Image
 
 ![][pipeline_1a]
 
+For this project, the only area of interest is the section of the image containing the road surface. The top
+420 and bottom 80 pixels are cropped, leaving a 1280 x 220 image with only 30% of the original pixels.
+
 ![][pipeline_1b]
 
 ### 2: Histogram Equalization and Colorspace Conversion to HSV
 
+In order to adjust for lighting conditions, two equalization methods were investigated in the `equalize_hist`
+function on conv.py:
+
+```
+def equalize_hist(img):
+    if False:
+        # Global Histogram Equalization
+        img[:,:,1] = cv2.equalizeHist(img[:,:,1])
+        img[:,:,2] = cv2.equalizeHist(img[:,:,2])
+
+    if False:
+        # Striped Histogram Equalization
+        steps = 4
+        step = int(img.shape[0] / steps)
+        for i in range(steps):
+            img_row = img[(i * step):((i + 1) * step),:,:]
+            img_row[:,:,1] = cv2.equalizeHist(img_row[:,:,1])
+            img_row[:,:,2] = cv2.equalizeHist(img_row[:,:,2])
+    return img
+```
+
+The first variant uses `cv2.equalizeHist()` on the S and V channels across the entire image, and the second
+does the same except across four horizontal slices of the image.
+
 ![][pipeline_2a]
 
 ![][pipeline_2b]
+
+In practice, performance did not seem to be improved when using this type of equalization, possibly
+because the histogram was affected by parts of the image besides the road surface. A future version
+could use an application-specific equalization method designed to equalize the road surface of the
+entire image to the approximate gray level of the area immediately in front of the car.
+
+In the final version, no equalization or contrast adjustment was performed, and the image was 
+immediately converted to a floating point HSV colorspace.
 
 ### 3: Basic Feature Extraction
 
@@ -147,26 +182,27 @@ Corrected Calibration Image
 
 #### Filtering Logic
 
-
 ### 8: Curve Radius and Lane Position
 
 ### 9: Draw Lane Image
+
 ![][pipeline_9]
 
 ### 10: Draw Information Overlays
+
 ![][pipeline_10]
 
 ### Video 1 - Project Video ###
 
-[Project Video](./examples/pv.mpg)
+[Project Video](./examples/pv.mp4)
 
 ### Video 2 - Challenge Video ###
 
-[Challenge Video](./examples/cv.mpg)
+[Challenge Video](./examples/cv.mp4)
 
 ### Video 3 - Harder Challenge Video ###
 
-[Harder Challenge Video](./examples/hcv.mpg)
+[Harder Challenge Video](./examples/hcv.mp4)
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 

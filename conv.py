@@ -24,17 +24,16 @@ def show(name, img):
 def equalize_hist(img):
     if False:
         # Global Histogram Equalization
-        img[:,:,1] = cv2.equalizeHist(img[:,:,1])
-        img[:,:,2] = cv2.equalizeHist(img[:,:,2])
+        img = cv2.equalizeHist(img)
 
     if False:
         # Striped Histogram Equalization
         steps = 4
         step = int(img.shape[0] / steps)
+        rows = []
         for i in range(steps):
-            img_row = img[(i * step):((i + 1) * step),:,:]
-            img_row[:,:,1] = cv2.equalizeHist(img_row[:,:,1])
-            img_row[:,:,2] = cv2.equalizeHist(img_row[:,:,2])
+            rows.append(cv2.equalizeHist(img[(i * step):((i + 1) * step),:]))
+        img = np.concatenate(rows)
     return img
 
 def filter_thresh(img, thresh):
@@ -96,7 +95,11 @@ def score(*args):
     return 0
 
 def process_image(img):
-    img = hsv_f32(equalize_hist(img))
+    img = hsv(img)
+    # img[:,:,1] = equalize_hist(img[:,:,1])
+    img[:,:,2] = equalize_hist(img[:,:,2])
+    # return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+    img = img.astype(np.float32) / 255.0
 
 
     # img[:,:,0] = filter_stripes(1 - np.abs(img[:,:,0] - 0.035), 0.005, 30.0, wmul=2)
