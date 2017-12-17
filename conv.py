@@ -119,7 +119,7 @@ def process_image(img):
     # s = filter_stripes(img[:,:,1], -0.005, 10)
     s = filter_stripes(img[:,:,1], -0.015, 10, deriv=False)
     v_s = filter_stripes(img[:,:,2], -0.005, 20)
-    # Vary threshold based on local image
+    # TODO Vary threshold based on local image
     v_t = filter_thresh(img[:,:,2], (0.60, 1.0))
 
     h[h > 0] = 1.0

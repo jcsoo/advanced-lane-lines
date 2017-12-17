@@ -55,8 +55,25 @@ class Pipeline:
                 vp = (640, 0),
                 tl = (520, 40),
                 bl = (0, 220),
-                out = self.warp_shape,
+                out = self.warp_shape
             )
+
+        # From warped image measurements
+        #
+        #   Lane Width = ~1280px
+        #   Dash Length = ~230px
+        #
+        #   Actual Width = 3.7m
+        #   Actual Length = 3m
+        #
+        #   Xpx / Xm = 1280 / 3.7
+        #   Ypx / Ym = 230 / 3
+
+        self.xpx_per_m = 1280 / 3.7
+        self.ypx_per_m = 230 / 3.0
+
+        self.xm_per_pix = 3.7 / 1280
+        self.ym_per_pix = 3.0 / 230
 
         # print(self.img_shape)
 
@@ -125,8 +142,8 @@ class Pipeline:
                 print('find_line_with_priors lost right')
 
 
-        if fit_left is not None and fit_right is not None:
-            if fit_left[0] == fit_right[0]:
+        if fit_left is not None and fit_left[0] is not None and fit_right is not None and fit_right[0] is not None:
+            if fit_left[0][0] == fit_right[0][0]:
                 print("Both lanes the same")
                 reset = True
 
@@ -186,7 +203,47 @@ class Pipeline:
         if False:
             # Overlay img_combined
             img_out = cv2.addWeighted(img_out, 0.5, (255 * img_conv).astype(np.uint8), 1, 0)
-            # self.view(img_out)        
+            # self.view(img_out)    
+
+        # Curve Radius
+
+        # Evaluate radius at screen bottom
+        yeval_px = img.shape[0]
+
+        # print(fit_left, fit_right)
+
+        if fit_left is not None and fit_left[0] is not None:
+            left_radius_px = self.curve_radius(fit_left[0], yeval_px)
+        else:
+            left_radius_px = 0
+
+        if fit_right is not None and fit_right[0] is not None:
+            right_radius_px = self.curve_radius(fit_right[0], yeval_px)
+        else:
+            right_radius_px = 0
+
+        yeval_m = img.shape[0] * self.ym_per_pix
+
+        if fit_left is not None and fit_left[1] is not None:
+            left_radius_m = self.curve_radius(fit_left[1], yeval_m)
+        else:
+            left_radius_m = 0
+    
+        if fit_right is not None and fit_right[1] is not None:
+            right_radius_m = self.curve_radius(fit_right[1], yeval_m)
+        else:
+            right_radius_m = 0
+
+        # Draw Info
+
+        line = ''
+        line += 'Bins: %d %d ' % (num_left, num_right)
+        line += 'Radius: %dpx %dpx / %dm %dm' % (left_radius_px, right_radius_px, left_radius_m, right_radius_m)
+        line += ''
+
+        self.draw_text(img_out, line, (10, 20), 0.5, WHITE)
+
+
         self.frames += 1
         return img_out
 
@@ -256,12 +313,18 @@ class Pipeline:
 
         num_x = np.count_nonzero(x)
 
+        h = np.histogram(y, bins=8, range=(0, img.shape[0]))
+        bins = np.count_nonzero(h[0])
+        
+
         if num_x > 0 :
-            fit = np.polyfit(y, x, 2)
+            fit_px = np.polyfit(y, x, 2)
+            fit_m = np.polyfit(y * self.ym_per_pix, x * self.xm_per_pix, 2)
+            fit = (fit_px, fit_m)
         else:
             fit = None
         
-        return fit, num_x
+        return fit, bins
 
     def find_lines(self, img):
         left_x, right_x = self.find_base_lines(img)
@@ -272,6 +335,9 @@ class Pipeline:
         return left_fit, right_fit, left_num, right_num
 
     def find_line_with_priors(self, img, fit, margin=100):
+        fit_px, fit_m = fit
+        fit = fit_px
+
         nonzero = img.nonzero()
         nonzeroy = np.array(nonzero[0])
         nonzerox = np.array(nonzero[1])
@@ -289,19 +355,13 @@ class Pipeline:
         h = np.histogram(y, bins=8, range=(0, img.shape[0]))
         bins = np.count_nonzero(h[0])
 
-        # windows = 8
-        # window_height = img.shape[0] // windows
-        # counts = []
-        # for i in range(windows):
-        #     wy0 = i * window_height
-        #     wy1 = wy0 + window_height
-        #     counts.append(len(np.where(np.logical_and(y >= wy0, y < wy1))))
-        # print(counts)
-        if num > 0:
-            fit = np.polyfit(y, x, 2)
+        if num > 0 :
+            fit_px = np.polyfit(y, x, 2)
+            fit_m = np.polyfit(y * self.ym_per_pix, x * self.xm_per_pix, 2)
+            fit = (fit_px, fit_m)
         else:
             fit = None
-
+        
         return fit, bins
 
     def find_lines_with_priors(self, img, left_fit, right_fit, margin=50, min_points=200, plot=False):
@@ -338,6 +398,9 @@ class Pipeline:
         # if self.num_left == 0 or self.num_right == 0:
         #     return undist
 
+        left_fit = left_fit[0]
+        right_fit = right_fit[0]
+
         image = undist
         binary_warped = warped
 
@@ -363,6 +426,11 @@ class Pipeline:
         newwarp = self.unwarp(color_warp)
 
         return cv2.addWeighted(undist, 1, newwarp, 0.3, 0)
+
+    def curve_radius(self, fit, y_eval):
+        curverad = ((1 + (2 * fit[0] * y_eval + fit[1]) ** 2) ** 1.5) / np.absolute(2 * fit[0])
+        # Example values - px: 1926.74 1908.48
+        return curverad
 
     def draw_text(self, img, text, org, scale, color):      
         org = [org[0], org[1]]
