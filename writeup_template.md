@@ -13,8 +13,8 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[cal_2_before]: ./camera_cal/calibration2.jpg "Original"
-[cal_2_after]: ./camera_out/calibration2.jpg "Undistorted"
+[calibration_0]: ./examples/calibration0.jpg "Original"
+[calibration_1]: ./examples/calibration1.jpg "Undistorted"
 
 [pipeline_0]: ./examples/pipeline_0.jpg "Original Image"
 
@@ -26,17 +26,18 @@ The goals / steps of this project are the following:
 [pipeline_3a]: ./examples/pipeline_3a.jpg "H: Hue Similarity Threshold"
 [pipeline_3b]: ./examples/pipeline_3b.jpg "S: Saturation Vertical Line Convolution"
 [pipeline_3c]: ./examples/pipeline_3c.jpg "V_S: Value Vertical Line Convolution"
-[pipeline_3c]: ./examples/pipeline_3d.jpg "V_T: Value Threshold"
+[pipeline_3d]: ./examples/pipeline_3d.jpg "V_T: Value Threshold"
 
 [pipeline_4a]: ./examples/pipeline_4a.jpg "A: (Dilate H) AND S"
 [pipeline_4b]: ./examples/pipeline_4b.jpg "B: S AND V_S"
-[pipeline_4b]: ./examples/pipeline_4c.jpg "C: V_S AND V_T"
+[pipeline_4c]: ./examples/pipeline_4c.jpg "C: V_S AND V_T"
 
 [pipeline_5]: ./examples/pipeline_5.jpg "Combined: A + B + C"
 
 [pipeline_6]: ./examples/pipeline_6.jpg "Apply Perspective Transform"
 
-[pipeline_7]: ./examples/pipeline_7.jpg "Line Fitting"
+[pipeline_7a]: ./examples/pipeline_7a.jpg "Line Fitting - No Priors"
+[pipeline_7b]: ./examples/pipeline_7b.jpg "Line Fitting - With Priors"
 
 [pipeline_8]: ./examples/pipeline_8.jpg "Curve Radius and Lane Position"
 
@@ -84,42 +85,68 @@ correct the incoming images.
 Original Calibration Image
 ----
 
-![alt text][cal_2_before]
+![alt text][calibration_0]
 
 Corrected Calibration Image
 ----
 
-![alt text][cal_2_after]
+![alt text][calibration_1]
 
 ## Pipeline
 
 ### 0: Original Image
 
+![][pipeline_0]
+
 ### 1: Distortion Correction and Cropping
+
+![][pipeline_1]
 
 ### 2: Colorspace Conversion to HSV
 
+![][pipeline_2]
+
 ### 3: Basic Feature Extraction
+
+![][pipeline_3a]
+![][pipeline_3b]
+![][pipeline_3c]
+![][pipeline_3d]
 
 ### 4: Feature Combination
 
+![][pipeline_4a]
+![][pipeline_4b]
+![][pipeline_4c]
+
 ### 5: Feature Unification
 
+![][pipeline_5]
+
 ### 6: Perspective Transform
+
+![][pipeline_6]
 
 ### 7: Line Fitting
 
 #### Without Priors - Simple Windowing
 
+![][pipeline_7a]
+
 #### With Priors - Curve-based Windowing
 
+![][pipeline_7b]
+
 #### Filtering Logic
+
 
 ### 8: Curve Radius and Lane Position
 
 ### 9: Draw Lane Image
+![][pipeline_9]
 
 ### 10: Draw Information Overlays
+![][pipeline_10]
 
 ### Video 1 - Project Video ###
 
